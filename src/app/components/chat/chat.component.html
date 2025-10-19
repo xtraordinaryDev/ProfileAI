@@ -1,0 +1,145 @@
+<div class="chat-container">
+  <!-- Header -->
+  <header class="chat-header">
+    <div class="header-left">
+      <div class="logo">
+        <img src="assets/images/ProfileAILogoTransparent.png" alt="ProFile AI" class="logo-image">
+        <div class="logo-text">
+          ProFile<span class="ai">AI</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn btn-secondary" (click)="goToProfile()">
+        View Profile
+      </button>
+      <button class="btn btn-secondary" (click)="logout()">
+        Logout
+      </button>
+    </div>
+  </header>
+
+  <!-- Chat Area -->
+  <div class="chat-area">
+    <div class="messages-container" #messagesContainer>
+      <div 
+        *ngFor="let message of messages" 
+        class="message"
+        [class.user-message]="message.isUser"
+        [class.ai-message]="!message.isUser"
+      >
+        <div class="message-avatar" *ngIf="!message.isUser">
+          <div class="avatar-icon">AI</div>
+        </div>
+        <div class="message-content">
+          <div class="message-text" 
+               [innerHTML]="message.isHtml ? message.text : null"
+               *ngIf="message.isHtml; else textMessage">
+          </div>
+          <ng-template #textMessage>
+            <div class="message-text">{{ message.text }}</div>
+          </ng-template>
+          <div class="message-time">
+            {{ message.timestamp | date:'short' }}
+          </div>
+        </div>
+        <div class="message-avatar" *ngIf="message.isUser">
+          <div class="avatar-icon user">U</div>
+        </div>
+      </div>
+      
+      <div *ngIf="isTyping" class="message ai-message typing">
+        <div class="message-avatar">
+          <div class="avatar-icon">AI</div>
+        </div>
+        <div class="message-content">
+          <div class="typing-indicator" *ngIf="!isApiCallInProgress">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <div class="api-call-indicator" *ngIf="isApiCallInProgress">
+            <div class="research-header">
+              <h3>🔍 Lead Research in Progress</h3>
+              <p class="research-note">This comprehensive research can take several minutes to complete. Please be patient while we gather detailed information.</p>
+            </div>
+            
+            <div class="progress-container">
+              <div class="progress-info">
+                <span class="current-step">{{ currentStep }}</span>
+                <span class="progress-percentage">{{ progressPercentage | number:'1.0-0' }}%</span>
+              </div>
+              
+              <div class="progress-bar">
+                <div class="progress-fill" [style.width.%]="progressPercentage"></div>
+              </div>
+              
+              <div class="time-info">
+                <span class="estimated-time" *ngIf="estimatedTimeRemaining > 0">
+                  ⏱️ Estimated time remaining: {{ formatTime(estimatedTimeRemaining) }}
+                </span>
+                <span class="completed-time" *ngIf="estimatedTimeRemaining === 0 && progressPercentage === 100">
+                  ✅ Research completed!
+                </span>
+              </div>
+            </div>
+            
+            <div class="research-steps">
+              <div class="step" [class.active]="currentStep.includes('Initializing')">
+                <span class="step-icon">1</span>
+                <span class="step-text">Initialize</span>
+              </div>
+              <div class="step" [class.active]="currentStep.includes('LinkedIn')">
+                <span class="step-icon">2</span>
+                <span class="step-text">LinkedIn Data</span>
+              </div>
+              <div class="step" [class.active]="currentStep.includes('company')">
+                <span class="step-icon">3</span>
+                <span class="step-text">Company Info</span>
+              </div>
+              <div class="step" [class.active]="currentStep.includes('opportunities')">
+                <span class="step-icon">4</span>
+                <span class="step-text">Opportunities</span>
+              </div>
+              <div class="step" [class.active]="currentStep.includes('report')">
+                <span class="step-icon">5</span>
+                <span class="step-text">Generate Report</span>
+              </div>
+              <div class="step" [class.active]="currentStep.includes('Finalizing')">
+                <span class="step-icon">6</span>
+                <span class="step-text">Finalize</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Input Area -->
+  <div class="input-area">
+    <form (ngSubmit)="sendMessage()" #messageForm="ngForm">
+      <div class="input-container">
+        <textarea
+          [(ngModel)]="messageText"
+          name="messageText"
+          placeholder="Ask me anything about building your profile..."
+          rows="1"
+          #messageInput
+          (keydown.enter)="onEnterKey($event)"
+          (input)="adjustTextareaHeight()"
+        ></textarea>
+        <button 
+          type="submit" 
+          class="send-button"
+          [disabled]="!messageText.trim() || isTyping || isApiCallInProgress"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+            <path d="M22 2L11 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
