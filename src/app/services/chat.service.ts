@@ -45,18 +45,28 @@ export class ChatService {
     // Call the lead research endpoint with the user's message
     this.callLeadResearchEndpoint(text).subscribe({
       next: (response: any) => {
+        console.log('Raw response:', response);
+        
         // Handle both string and object responses
         let htmlContent = '';
         if (typeof response === 'string') {
           htmlContent = response;
         } else if (response && response.html) {
           htmlContent = response.html;
+        } else if (response && typeof response === 'object') {
+          // Try to extract HTML from various possible response formats
+          htmlContent = response.html || response.data || response.content || response.result || JSON.stringify(response, null, 2);
         } else {
           htmlContent = JSON.stringify(response, null, 2);
         }
         
+        // Decode escaped HTML characters
+        htmlContent = this.decodeHtmlContent(htmlContent);
+        
         // Clean up the HTML content
         htmlContent = this.cleanHtmlContent(htmlContent);
+        
+        console.log('Processed HTML content:', htmlContent);
         
         // Add the HTML response as a message
         this.addMessage(htmlContent, false, true);
@@ -67,23 +77,63 @@ export class ChatService {
       error: (error) => {
         console.error('Error calling lead research endpoint:', error);
         
-        let errorMessage = '';
-        if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
-          errorMessage = '⏰ The research request timed out after 5 minutes. The research process is taking longer than expected. Please try again with a more specific query or contact support if the issue persists.';
-        } else if (error.status === 404) {
-          errorMessage = '🔍 The research endpoint is currently unavailable. Please try again later or contact support.';
-        } else if (error.status >= 500) {
-          errorMessage = '⚠️ The research service is experiencing technical difficulties. Please try again in a few minutes.';
-        } else {
-          errorMessage = '❌ An unexpected error occurred during the research process. Please try again or contact support if the issue persists.';
+        // If JSON parsing failed, try with text response
+        if (error.status === 0 || error.message?.includes('JSON')) {
+          console.log('JSON parsing failed, trying text response...');
+          this.http.post('https://xtraordinary.app.n8n.cloud/webhook-test/lead-research', { message: text }, { 
+            responseType: 'text'
+          }).pipe(timeout(300000)).subscribe({
+            next: (textResponse: string) => {
+              console.log('Text response:', textResponse);
+              let htmlContent = this.decodeHtmlContent(textResponse);
+              htmlContent = this.cleanHtmlContent(htmlContent);
+              this.addMessage(htmlContent, false, true);
+              this.apiCallCompleteSubject.next();
+            },
+            error: (textError) => {
+              this.handleApiError(textError);
+            }
+          });
+          return;
         }
         
-        this.addMessage(errorMessage, false);
-        
-        // Notify that API call is complete (even on error)
-        this.apiCallCompleteSubject.next();
+        this.handleApiError(error);
       }
     });
+  }
+
+  private handleApiError(error: any): void {
+    let errorMessage = '';
+    if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
+      errorMessage = '⏰ The research request timed out after 5 minutes. The research process is taking longer than expected. Please try again with a more specific query or contact support if the issue persists.';
+    } else if (error.status === 404) {
+      errorMessage = '🔍 The research endpoint is currently unavailable. Please try again later or contact support.';
+    } else if (error.status >= 500) {
+      errorMessage = '⚠️ The research service is experiencing technical difficulties. Please try again in a few minutes.';
+    } else {
+      errorMessage = '❌ An unexpected error occurred during the research process. Please try again or contact support if the issue persists.';
+    }
+    
+    this.addMessage(errorMessage, false);
+    
+    // Notify that API call is complete (even on error)
+    this.apiCallCompleteSubject.next();
+  }
+
+  private decodeHtmlContent(html: string): string {
+    // Decode escaped HTML characters
+    return html
+      .replace(/\\n/g, '\n')
+      .replace(/\\t/g, '\t')
+      .replace(/\\r/g, '\r')
+      .replace(/\\"/g, '"')
+      .replace(/\\'/g, "'")
+      .replace(/\\\\/g, '\\')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&amp;/g, '&')
+      .replace(/&quot;/g, '"')
+      .replace(/&#39;/g, "'");
   }
 
   private cleanHtmlContent(html: string): string {
@@ -105,7 +155,7 @@ export class ChatService {
     this.messagesSubject.next([]);
   }
 
-  callLeadResearchEndpoint(message: string): Observable<string> {
+  callLeadResearchEndpoint(message: string): Observable<any> {
     const endpoint = 'https://xtraordinary.app.n8n.cloud/webhook-test/lead-research';
     const payload = {
       message: message
@@ -115,8 +165,9 @@ export class ChatService {
     console.log('Sending payload to endpoint:', JSON.stringify(payload, null, 2));
     
     // Set timeout to 5 minutes (300000ms) for long-running research
+    // Try JSON first, fallback to text if needed
     return this.http.post(endpoint, payload, { 
-      responseType: 'text'
+      responseType: 'json'
     }).pipe(
       // Add timeout handling
       timeout(300000) // 5 minutes timeout
