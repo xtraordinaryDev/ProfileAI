@@ -151,6 +151,144 @@ h2 {
   text-decoration: underline;
 }
 
+// Plan Selection Styles
+.plan-selection {
+  margin: 24px 0;
+  text-align: left;
+}
+
+.plan-label {
+  display: block;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 16px;
+  font-size: 16px;
+}
+
+.plans-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.plan-card {
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #ffffff;
+  position: relative;
+  
+  &:hover {
+    border-color: #3b82f6;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  }
+  
+  &.selected {
+    border-color: #3b82f6;
+    background: #f8fafc;
+    box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
+  }
+}
+
+.plan-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.plan-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1f2937;
+  margin: 0;
+}
+
+.plan-price {
+  text-align: right;
+}
+
+.free-price {
+  color: #10b981;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.paid-price {
+  color: #3b82f6;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.plan-description {
+  color: #6b7280;
+  font-size: 14px;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.plan-features {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+  
+  li {
+    color: #4b5563;
+    font-size: 14px;
+    margin-bottom: 6px;
+    padding-left: 20px;
+    position: relative;
+    
+    &::before {
+      content: '✓';
+      position: absolute;
+      left: 0;
+      color: #10b981;
+      font-weight: bold;
+      font-size: 12px;
+    }
+  }
+}
+
+.plan-selector {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+}
+
+.radio-button {
+  width: 20px;
+  height: 20px;
+  border: 2px solid #d1d5db;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  
+  &.checked {
+    border-color: #3b82f6;
+    background: #3b82f6;
+  }
+}
+
+.radio-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: white;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  
+  .checked & {
+    opacity: 1;
+  }
+}
+
 @media (max-width: 480px) {
   .login-card {
     padding: 32px 24px;
@@ -160,5 +298,64 @@ h2 {
   .logo {
     flex-direction: column;
     gap: 12px;
+  }
+  
+  .plans-grid {
+    gap: 8px;
+  }
+  
+  .plan-card {
+    padding: 16px;
+  }
+  
+  .plan-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .plan-price {
+    text-align: left;
+  }
+}
+
+// Payment Section
+.payment-section {
+  margin-top: 24px;
+  padding: 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
+.payment-label {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 12px;
+}
+
+.payment-container {
+  position: relative;
+}
+
+.payment-element {
+  padding: 16px;
+  background: #ffffff;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  
+  &:focus-within {
+    border-color: #3b82f6;
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
+}
+
+@media (max-width: 480px) {
+  .payment-section {
+    padding: 16px;
+    margin-top: 20px;
   }
 }

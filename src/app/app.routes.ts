@@ -2,6 +2,9 @@ import { Routes } from '@angular/router';
 import { LoginComponent } from './components/login/login.component';
 import { ChatComponent } from './components/chat/chat.component';
 import { ProfileComponent } from './components/profile/profile.component';
+import { SubscriptionComponent } from './components/subscription/subscription.component';
+import { UserManagementComponent } from './components/user-management/user-management.component';
+import { PaymentCheckoutComponent } from './components/payment-checkout/payment-checkout.component';
 import { AuthGuard } from './guards/auth.guard';
 
 export const routes: Routes = [
@@ -9,5 +12,8 @@ export const routes: Routes = [
   { path: 'login', component: LoginComponent },
   { path: 'chat', component: ChatComponent, canActivate: [AuthGuard] },
   { path: 'profile', component: ProfileComponent, canActivate: [AuthGuard] },
+  { path: 'subscription', component: SubscriptionComponent, canActivate: [AuthGuard] },
+  { path: 'payment/checkout', component: PaymentCheckoutComponent, canActivate: [AuthGuard] },
+  { path: 'admin/users', component: UserManagementComponent, canActivate: [AuthGuard] },
   { path: '**', redirectTo: '/login' }
 ];

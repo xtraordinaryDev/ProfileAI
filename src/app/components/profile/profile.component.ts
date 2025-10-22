@@ -3,8 +3,9 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
-import { AuthService } from '../../services/auth.service';
+import { AuthService, User } from '../../services/auth.service';
 import { ProfileService, UserProfile, Experience, Education } from '../../services/profile.service';
+import { PaymentService, Customer } from '../../services/payment.service';
 
 @Component({
   selector: 'app-profile',
@@ -26,6 +27,12 @@ import { ProfileService, UserProfile, Experience, Education } from '../../servic
           <button class="btn btn-secondary" (click)="goToChat()">
             Back to Chat
           </button>
+          <button class="btn btn-secondary" (click)="goToSubscription()" *ngIf="!isAdmin()">
+            Subscription
+          </button>
+          <button class="btn btn-secondary" (click)="goToUserManagement()" *ngIf="isAdmin()">
+            Manage Users
+          </button>
           <button class="btn btn-secondary" (click)="logout()">
             Logout
           </button>
@@ -42,6 +49,16 @@ import { ProfileService, UserProfile, Experience, Education } from '../../servic
             <h3>{{ profile?.name || 'Your Name' }}</h3>
             <p class="profile-title">{{ profile?.title || 'Your Title' }}</p>
             <p class="profile-email">{{ profile?.email || 'your.email@example.com' }}</p>
+            
+            <!-- Subscription Status -->
+            <div class="subscription-status" *ngIf="currentUser">
+              <div class="status-badge" [ngClass]="getSubscriptionStatusClass()">
+                {{ getSubscriptionStatusText() }}
+              </div>
+              <p class="subscription-info" *ngIf="currentUser.role === 'premium'">
+                Premium Member
+              </p>
+            </div>
             
             <div class="profile-actions">
               <button class="btn btn-primary" (click)="editMode = !editMode">
@@ -316,6 +333,49 @@ import { ProfileService, UserProfile, Experience, Education } from '../../servic
       margin-bottom: 20px;
     }
     
+    .subscription-status {
+      margin: 16px 0;
+      text-align: center;
+      
+      .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+        
+        &.status-active {
+          background: #d1fae5;
+          color: #059669;
+        }
+        
+        &.status-inactive {
+          background: #fef3c7;
+          color: #d97706;
+        }
+        
+        &.status-cancelled {
+          background: #fee2e2;
+          color: #dc2626;
+        }
+        
+        &.status-free {
+          background: #f3f4f6;
+          color: #6b7280;
+        }
+      }
+      
+      .subscription-info {
+        color: var(--primary-bright);
+        font-size: 12px;
+        font-weight: 500;
+        margin: 0;
+      }
+    }
+    
     .profile-actions {
       margin-top: 20px;
     }
@@ -550,6 +610,8 @@ import { ProfileService, UserProfile, Experience, Education } from '../../servic
 })
 export class ProfileComponent implements OnInit, OnDestroy {
   profile: UserProfile | null = null;
+  currentUser: User | null = null;
+  customer: Customer | null = null;
   profileForm: Partial<UserProfile> = {
     name: '',
     title: '',
@@ -561,40 +623,60 @@ export class ProfileComponent implements OnInit, OnDestroy {
   editMode = false;
   newSkill = '';
   private profileSubscription?: Subscription;
+  private userSubscription?: Subscription;
+  private customerSubscription?: Subscription;
 
   constructor(
     private profileService: ProfileService,
     private authService: AuthService,
+    private paymentService: PaymentService,
     private router: Router
   ) {}
 
   ngOnInit(): void {
+    // Subscribe to profile changes
     this.profileSubscription = this.profileService.profile$.subscribe(profile => {
       this.profile = profile;
       if (profile) {
         this.profileForm = { ...profile };
       } else {
         // Initialize with user email if no profile exists
-        const email = this.authService.getCurrentUser();
+        const user = this.authService.getCurrentUser();
         this.profileForm = {
           name: '',
           title: '',
           summary: '',
-          email: email || '',
+          email: user?.email || '',
           skills: [],
           experience: [],
           education: [],
           contact: {
-            email: email || ''
+            email: user?.email || ''
           }
         };
       }
+    });
+
+    // Subscribe to current user changes
+    this.userSubscription = this.authService.currentUser$.subscribe(user => {
+      this.currentUser = user;
+    });
+
+    // Subscribe to customer data
+    this.customerSubscription = this.paymentService.customer$.subscribe(customer => {
+      this.customer = customer;
     });
   }
 
   ngOnDestroy(): void {
     if (this.profileSubscription) {
       this.profileSubscription.unsubscribe();
+    }
+    if (this.userSubscription) {
+      this.userSubscription.unsubscribe();
+    }
+    if (this.customerSubscription) {
+      this.customerSubscription.unsubscribe();
     }
   }
 
@@ -664,5 +746,47 @@ export class ProfileComponent implements OnInit, OnDestroy {
   logout(): void {
     this.authService.logout();
     this.router.navigate(['/login']);
+  }
+
+  goToSubscription(): void {
+    this.router.navigate(['/subscription']);
+  }
+
+  goToUserManagement(): void {
+    this.router.navigate(['/admin/users']);
+  }
+
+  isAdmin(): boolean {
+    return this.authService.hasRole('admin');
+  }
+
+  getSubscriptionStatusText(): string {
+    if (!this.currentUser) return 'Free';
+    
+    switch (this.currentUser.subscriptionStatus) {
+      case 'active':
+        return 'Premium';
+      case 'inactive':
+        return 'Inactive';
+      case 'cancelled':
+        return 'Cancelled';
+      default:
+        return 'Free';
+    }
+  }
+
+  getSubscriptionStatusClass(): string {
+    if (!this.currentUser) return 'status-free';
+    
+    switch (this.currentUser.subscriptionStatus) {
+      case 'active':
+        return 'status-active';
+      case 'inactive':
+        return 'status-inactive';
+      case 'cancelled':
+        return 'status-cancelled';
+      default:
+        return 'status-free';
+    }
   }
 }

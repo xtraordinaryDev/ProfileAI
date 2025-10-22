@@ -7,10 +7,53 @@
       </div>
     </div>
     
-    <h2>Welcome Back</h2>
-    <p class="subtitle">Sign in to continue building your AI-powered profile</p>
+    <h2>{{ showSignup ? 'Create Account' : 'Welcome Back' }}</h2>
+    <p class="subtitle">
+      {{ showSignup ? 'Join us and start building your AI-powered profile' : 'Sign in to continue building your AI-powered profile' }}
+    </p>
+
+    <!-- Error Message -->
+    <div class="error-message" *ngIf="error">
+      <i class="icon-error"></i>
+      {{ error }}
+    </div>
     
-    <form (ngSubmit)="onSubmit()" #loginForm="ngForm">
+    <form (ngSubmit)="onSubmit()" #authForm="ngForm">
+      <!-- Registration Fields -->
+      <div *ngIf="showSignup" class="input-row">
+        <div class="input-group">
+          <label for="firstName">First Name</label>
+          <input
+            type="text"
+            id="firstName"
+            name="firstName"
+            [(ngModel)]="firstName"
+            required
+            #firstNameInput="ngModel"
+            placeholder="Enter your first name"
+          >
+          <div *ngIf="firstNameInput.invalid && firstNameInput.touched" class="field-error">
+            First name is required
+          </div>
+        </div>
+        
+        <div class="input-group">
+          <label for="lastName">Last Name</label>
+          <input
+            type="text"
+            id="lastName"
+            name="lastName"
+            [(ngModel)]="lastName"
+            required
+            #lastNameInput="ngModel"
+            placeholder="Enter your last name"
+          >
+          <div *ngIf="lastNameInput.invalid && lastNameInput.touched" class="field-error">
+            Last name is required
+          </div>
+        </div>
+      </div>
+      
       <div class="input-group">
         <label for="email">Email Address</label>
         <input
@@ -23,7 +66,7 @@
           #emailInput="ngModel"
           placeholder="Enter your email"
         >
-        <div *ngIf="emailInput.invalid && emailInput.touched" class="error-message">
+        <div *ngIf="emailInput.invalid && emailInput.touched" class="field-error">
           Please enter a valid email address
         </div>
       </div>
@@ -40,32 +83,97 @@
           #passwordInput="ngModel"
           placeholder="Enter your password"
         >
-        <div *ngIf="passwordInput.invalid && passwordInput.touched" class="error-message">
+        <div *ngIf="passwordInput.invalid && passwordInput.touched" class="field-error">
           Password must be at least 6 characters
+        </div>
+      </div>
+
+      <!-- Confirm Password for Registration -->
+      <div *ngIf="showSignup" class="input-group">
+        <label for="confirmPassword">Confirm Password</label>
+        <input
+          type="password"
+          id="confirmPassword"
+          name="confirmPassword"
+          [(ngModel)]="confirmPassword"
+          required
+          #confirmPasswordInput="ngModel"
+          placeholder="Confirm your password"
+        >
+        <div *ngIf="confirmPasswordInput.invalid && confirmPasswordInput.touched" class="field-error">
+          Please confirm your password
+        </div>
+      </div>
+
+      <!-- Plan Selection for Registration -->
+      <div *ngIf="showSignup" class="plan-selection">
+        <label class="plan-label">Choose Your Plan</label>
+        <div class="plans-grid">
+          <div 
+            *ngFor="let plan of subscriptionPlans" 
+            class="plan-card"
+            [class.selected]="selectedPlan === plan.id"
+            (click)="selectPlan(plan.id)"
+          >
+            <div class="plan-header">
+              <h3 class="plan-name">{{ plan.name }}</h3>
+              <div class="plan-price">
+                <span *ngIf="plan.price === 0" class="free-price">Free</span>
+                <span *ngIf="plan.price > 0" class="paid-price">${{ plan.price / 100 }}/month</span>
+              </div>
+            </div>
+            <p class="plan-description">{{ plan.description }}</p>
+            <ul class="plan-features">
+              <li *ngFor="let feature of plan.features">{{ feature }}</li>
+            </ul>
+            <div class="plan-selector">
+              <div class="radio-button" [class.checked]="selectedPlan === plan.id">
+                <div class="radio-inner"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div *ngIf="!selectedPlan && showSignup" class="field-error">
+          Please select a plan to continue
+        </div>
+      </div>
+
+      <!-- Payment Method for Paid Plans -->
+      <div *ngIf="showSignup && selectedPlan && selectedPlan !== 'basic'" class="payment-section">
+        <label class="payment-label">Payment Information</label>
+        <div class="payment-container">
+          <div id="payment-element" class="payment-element">
+            <!-- Stripe Elements will be inserted here -->
+          </div>
+          <div *ngIf="paymentError" class="field-error">
+            {{ paymentError }}
+          </div>
         </div>
       </div>
       
       <button
         type="submit"
         class="btn btn-primary full-width"
-        [disabled]="loginForm.invalid || isLoading"
+        [disabled]="authForm.invalid || isLoading"
       >
-        <span *ngIf="!isLoading">Sign In</span>
-        <span *ngIf="isLoading">Signing In...</span>
+        <span *ngIf="!isLoading">{{ showSignup ? 'Create Account' : 'Sign In' }}</span>
+        <span *ngIf="isLoading">{{ showSignup ? 'Creating Account...' : 'Signing In...' }}</span>
       </button>
     </form>
     
-    <div class="divider">
+    <div class="divider" *ngIf="!showSignup">
       <span>or</span>
     </div>
     
-    <button class="btn btn-secondary full-width" (click)="demoLogin()">
+    <button class="btn btn-secondary full-width" (click)="demoLogin()" *ngIf="!showSignup">
       Try Demo Account
     </button>
     
-    <p class="signup-link">
-      Don't have an account? 
-      <a href="#" (click)="showSignup = true; $event.preventDefault()">Sign up here</a>
+    <p class="auth-switch">
+      {{ showSignup ? 'Already have an account?' : "Don't have an account?" }}
+      <a href="#" (click)="toggleSignup(); $event.preventDefault()">
+        {{ showSignup ? 'Sign in here' : 'Sign up here' }}
+      </a>
     </p>
   </div>
 </div>

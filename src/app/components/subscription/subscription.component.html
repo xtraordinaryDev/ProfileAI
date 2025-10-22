@@ -1,0 +1,131 @@
+<div class="subscription-container">
+  <div class="header">
+    <button class="back-btn" (click)="goBack()">
+      <i class="icon-arrow-left"></i> Back to Profile
+    </button>
+    <h1>Subscription Plans</h1>
+    <p>Choose the plan that's right for you</p>
+  </div>
+
+  <!-- Current Subscription Status -->
+  <div class="current-subscription" *ngIf="currentCustomer?.subscription">
+    <div class="subscription-card" [class.active]="hasActiveSubscription()">
+      <h3>Current Subscription</h3>
+      <div class="subscription-details">
+        <div class="plan-info">
+          <h4>{{ currentCustomer?.subscription?.plan?.name }}</h4>
+          <p>{{ currentCustomer?.subscription?.plan?.description }}</p>
+          <span class="price">{{ formatPrice(currentCustomer?.subscription?.plan?.price || 0, currentCustomer?.subscription?.plan?.currency || 'usd') }}/{{ currentCustomer?.subscription?.plan?.interval }}</span>
+        </div>
+        <div class="subscription-status">
+          <span class="status-badge" [class.active]="hasActiveSubscription()">
+            {{ currentCustomer?.subscription?.status | titlecase }}
+          </span>
+          <p *ngIf="hasActiveSubscription()" class="renewal-info">
+            Renews in {{ getDaysUntilRenewal() }} days
+          </p>
+        </div>
+      </div>
+      <div class="subscription-actions">
+        <button 
+          *ngIf="hasActiveSubscription() && !currentCustomer?.subscription?.cancelAtPeriodEnd"
+          class="btn btn-danger" 
+          (click)="cancelSubscription()"
+          [disabled]="isLoading">
+          Cancel Subscription
+        </button>
+        <button 
+          *ngIf="currentCustomer?.subscription?.cancelAtPeriodEnd"
+          class="btn btn-success" 
+          (click)="reactivateSubscription()"
+          [disabled]="isLoading">
+          Reactivate Subscription
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading subscription plans...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error" *ngIf="error">
+    <div class="error-message">
+      <i class="icon-error"></i>
+      <p>{{ error }}</p>
+      <button class="btn btn-primary" (click)="loadData()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- Subscription Plans -->
+  <div class="plans-grid" *ngIf="!isLoading && !error">
+    <div 
+      class="plan-card" 
+      *ngFor="let plan of subscriptionPlans"
+      [class.current-plan]="isCurrentPlan(plan)"
+      [class.selected]="selectedPlan?.id === plan.id">
+      
+      <div class="plan-header">
+        <h3>{{ plan.name }}</h3>
+        <div class="price">
+          <span class="amount">{{ formatPrice(plan.price, plan.currency) }}</span>
+          <span class="interval">/{{ plan.interval }}</span>
+        </div>
+      </div>
+
+      <div class="plan-description">
+        <p>{{ plan.description }}</p>
+      </div>
+
+      <div class="plan-features">
+        <ul>
+          <li *ngFor="let feature of plan.features">
+            <i class="icon-check"></i>
+            {{ feature }}
+          </li>
+        </ul>
+      </div>
+
+      <div class="plan-actions">
+        <button 
+          *ngIf="!isCurrentPlan(plan)"
+          class="btn btn-primary"
+          (click)="selectPlan(plan)"
+          [disabled]="isLoading">
+          {{ selectedPlan?.id === plan.id ? 'Selected' : 'Choose Plan' }}
+        </button>
+        <span *ngIf="isCurrentPlan(plan)" class="current-plan-badge">
+          Current Plan
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Payment Form -->
+  <div class="payment-form" *ngIf="showPaymentForm && selectedPlan">
+    <div class="payment-card">
+      <h3>Complete Your Subscription</h3>
+      <div class="selected-plan-summary">
+        <h4>{{ selectedPlan.name }}</h4>
+        <p>{{ formatPrice(selectedPlan.price, selectedPlan.currency) }}/{{ selectedPlan.interval }}</p>
+      </div>
+      
+      <div class="payment-actions">
+        <button 
+          class="btn btn-primary"
+          (click)="subscribeToPlan()"
+          [disabled]="isLoading">
+          {{ isLoading ? 'Processing...' : 'Subscribe Now' }}
+        </button>
+        <button 
+          class="btn btn-secondary"
+          (click)="showPaymentForm = false; selectedPlan = null">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

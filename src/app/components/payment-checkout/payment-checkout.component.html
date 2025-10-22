@@ -1,0 +1,114 @@
+<div class="payment-checkout-container">
+  <div class="checkout-header">
+    <button class="back-btn" (click)="goBack()">
+      <i class="icon-arrow-left"></i> Back to Plans
+    </button>
+    <h1>Complete Your Purchase</h1>
+    <p>Secure payment powered by Stripe</p>
+  </div>
+
+  <div class="checkout-content">
+    <!-- Order Summary -->
+    <div class="order-summary" *ngIf="selectedPlan">
+      <h3>Order Summary</h3>
+      <div class="plan-details">
+        <div class="plan-info">
+          <h4>{{ selectedPlan.name }}</h4>
+          <p>{{ selectedPlan.description }}</p>
+        </div>
+        <div class="plan-price">
+          <span class="price">{{ formatPrice(selectedPlan.price, selectedPlan.currency) }}</span>
+          <span class="interval">/{{ selectedPlan.interval }}</span>
+        </div>
+      </div>
+      
+      <div class="plan-features">
+        <h5>What's included:</h5>
+        <ul>
+          <li *ngFor="let feature of selectedPlan.features">
+            <i class="icon-check"></i>
+            {{ feature }}
+          </li>
+        </ul>
+      </div>
+
+      <div class="total">
+        <div class="total-line">
+          <span>Subtotal</span>
+          <span>{{ formatPrice(selectedPlan.price, selectedPlan.currency) }}</span>
+        </div>
+        <div class="total-line">
+          <span>Tax</span>
+          <span>$0.00</span>
+        </div>
+        <div class="total-line total-amount">
+          <span>Total</span>
+          <span>{{ formatPrice(selectedPlan.price, selectedPlan.currency) }}</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Payment Form -->
+    <div class="payment-form">
+      <h3>Payment Information</h3>
+      
+      <!-- Loading State -->
+      <div class="loading" *ngIf="isLoading">
+        <div class="spinner"></div>
+        <p>Setting up secure payment...</p>
+      </div>
+
+      <!-- Error State -->
+      <div class="error" *ngIf="error">
+        <div class="error-message">
+          <i class="icon-error"></i>
+          <p>{{ error }}</p>
+          <button class="btn btn-primary" (click)="createPaymentIntent()">Try Again</button>
+        </div>
+      </div>
+
+      <!-- Stripe Payment Element -->
+      <div class="payment-element-container" *ngIf="!isLoading && !error">
+        <div id="payment-element"></div>
+        
+        <div class="payment-actions">
+          <button 
+            class="btn btn-primary btn-large"
+            (click)="processPayment()"
+            [disabled]="isProcessing">
+            <span *ngIf="!isProcessing">
+              <i class="icon-lock"></i>
+              Complete Payment
+            </span>
+            <span *ngIf="isProcessing">
+              <div class="spinner-small"></div>
+              Processing...
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Security Notice -->
+      <div class="security-notice">
+        <i class="icon-shield"></i>
+        <p>Your payment information is secure and encrypted. We never store your card details.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Trust Indicators -->
+  <div class="trust-indicators">
+    <div class="trust-item">
+      <i class="icon-shield"></i>
+      <span>256-bit SSL Encryption</span>
+    </div>
+    <div class="trust-item">
+      <i class="icon-lock"></i>
+      <span>PCI DSS Compliant</span>
+    </div>
+    <div class="trust-item">
+      <i class="icon-check"></i>
+      <span>Money-back Guarantee</span>
+    </div>
+  </div>
+</div>

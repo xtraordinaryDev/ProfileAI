@@ -1,44 +1,175 @@
 import { Injectable } from '@angular/core';
-import { BehaviorSubject } from 'rxjs';
+import { BehaviorSubject, Observable } from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { environment } from '../../environments/environment';
+
+export interface User {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  role: 'free' | 'premium' | 'admin';
+  subscriptionStatus: 'active' | 'inactive' | 'cancelled';
+  subscriptionId?: string;
+  customerId?: string;
+  createdAt: Date;
+  lastLoginAt: Date;
+}
+
+export interface LoginRequest {
+  email: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  subscriptionPlanId?: string; // Plan ID (basic, pro, premium)
+  paymentMethodId?: string; // Optional payment method ID
+}
+
+export interface AuthResponse {
+  token: string;
+  user: User;
+  refreshToken: string;
+}
 
 @Injectable({
   providedIn: 'root'
 })
 export class AuthService {
   private isLoggedInSubject = new BehaviorSubject<boolean>(false);
+  private currentUserSubject = new BehaviorSubject<User | null>(null);
+  
   public isLoggedIn$ = this.isLoggedInSubject.asObservable();
+  public currentUser$ = this.currentUserSubject.asObservable();
 
-  constructor() {
-    // Check if user is already logged in (from localStorage)
+  private readonly API_BASE = environment.apiUrl;
+
+  constructor(private http: HttpClient) {
+    this.initializeAuth();
+  }
+
+  private initializeAuth(): void {
     const token = localStorage.getItem('authToken');
-    if (token) {
-      this.isLoggedInSubject.next(true);
+    const userData = localStorage.getItem('currentUser');
+    
+    if (token && userData) {
+      try {
+        const user = JSON.parse(userData);
+        this.currentUserSubject.next(user);
+        this.isLoggedInSubject.next(true);
+      } catch (error) {
+        this.clearAuthData();
+      }
     }
   }
 
-  login(email: string, password: string): boolean {
-    // Simple mock authentication - in real app, this would call an API
-    if (email && password) {
-      const token = 'mock-jwt-token-' + Date.now();
-      localStorage.setItem('authToken', token);
-      localStorage.setItem('userEmail', email);
-      this.isLoggedInSubject.next(true);
-      return true;
+  login(credentials: LoginRequest): Observable<AuthResponse> {
+    // Handle demo login locally
+    if (credentials.email === 'demo@profileai.com' && credentials.password === 'demo123') {
+      return this.createDemoAuthResponse();
     }
-    return false;
+    
+    return this.http.post<AuthResponse>(`${this.API_BASE}/auth/login`, credentials);
+  }
+
+  private createDemoAuthResponse(): Observable<AuthResponse> {
+    const demoUser: User = {
+      id: 'demo-user-id',
+      email: 'demo@profileai.com',
+      firstName: 'Demo',
+      lastName: 'User',
+      role: 'premium',
+      subscriptionStatus: 'active',
+      subscriptionId: 'demo-subscription-id',
+      customerId: 'demo-customer-id',
+      createdAt: new Date(),
+      lastLoginAt: new Date()
+    };
+
+    const authResponse: AuthResponse = {
+      token: 'demo-jwt-token-' + Date.now(),
+      refreshToken: 'demo-refresh-token-' + Date.now(),
+      user: demoUser
+    };
+
+    return new Observable(observer => {
+      // Simulate API delay
+      setTimeout(() => {
+        observer.next(authResponse);
+        observer.complete();
+      }, 1000);
+    });
+  }
+
+  register(userData: RegisterRequest): Observable<AuthResponse> {
+    return this.http.post<AuthResponse>(`${this.API_BASE}/auth/register`, userData);
   }
 
   logout(): void {
-    localStorage.removeItem('authToken');
-    localStorage.removeItem('userEmail');
+    this.clearAuthData();
     this.isLoggedInSubject.next(false);
+    this.currentUserSubject.next(null);
+  }
+
+  refreshToken(): Observable<AuthResponse> {
+    const refreshToken = localStorage.getItem('refreshToken');
+    return this.http.post<AuthResponse>(`${this.API_BASE}/auth/refresh`, { refreshToken });
+  }
+
+  updateUserProfile(userData: Partial<User>): Observable<User> {
+    return this.http.put<User>(`${this.API_BASE}/users/profile`, userData);
+  }
+
+  changePassword(currentPassword: string, newPassword: string): Observable<any> {
+    return this.http.post(`${this.API_BASE}/users/change-password`, {
+      currentPassword,
+      newPassword
+    });
+  }
+
+  deleteAccount(): Observable<any> {
+    return this.http.delete(`${this.API_BASE}/users/account`);
+  }
+
+  // Helper methods
+  setAuthData(authResponse: AuthResponse): void {
+    localStorage.setItem('authToken', authResponse.token);
+    localStorage.setItem('refreshToken', authResponse.refreshToken);
+    localStorage.setItem('currentUser', JSON.stringify(authResponse.user));
+    
+    this.currentUserSubject.next(authResponse.user);
+    this.isLoggedInSubject.next(true);
+  }
+
+  private clearAuthData(): void {
+    localStorage.removeItem('authToken');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('currentUser');
   }
 
   isAuthenticated(): boolean {
     return this.isLoggedInSubject.value;
   }
 
-  getCurrentUser(): string | null {
-    return localStorage.getItem('userEmail');
+  getCurrentUser(): User | null {
+    return this.currentUserSubject.value;
+  }
+
+  hasRole(role: string): boolean {
+    const user = this.getCurrentUser();
+    return user ? user.role === role : false;
+  }
+
+  isPremium(): boolean {
+    const user = this.getCurrentUser();
+    return user ? user.role === 'premium' && user.subscriptionStatus === 'active' : false;
+  }
+
+  getAuthToken(): string | null {
+    return localStorage.getItem('authToken');
   }
 }

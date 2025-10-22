@@ -48,7 +48,64 @@ export class ProfileService {
     const savedProfile = localStorage.getItem('userProfile');
     if (savedProfile) {
       this.profileSubject.next(JSON.parse(savedProfile));
+    } else {
+      // For demo purposes, create a sample profile
+      this.createDemoProfile();
     }
+  }
+
+  private createDemoProfile(): void {
+    const demoProfile: UserProfile = {
+      id: 'demo-profile-id',
+      name: 'Demo User',
+      email: 'demo@profileai.com',
+      title: 'Senior Software Engineer',
+      summary: 'Experienced software engineer with expertise in full-stack development, AI integration, and modern web technologies. Passionate about creating innovative solutions that solve real-world problems.',
+      skills: [
+        'Angular',
+        'TypeScript',
+        'Node.js',
+        'Python',
+        'Machine Learning',
+        'AWS',
+        'Docker',
+        'Git'
+      ],
+      experience: [
+        {
+          id: 'exp-1',
+          company: 'TechCorp Solutions',
+          position: 'Senior Software Engineer',
+          duration: '2021 - Present',
+          description: 'Led development of AI-powered applications using Angular and Python. Implemented microservices architecture and improved system performance by 40%.'
+        },
+        {
+          id: 'exp-2',
+          company: 'StartupXYZ',
+          position: 'Full Stack Developer',
+          duration: '2019 - 2021',
+          description: 'Developed web applications using modern JavaScript frameworks. Collaborated with cross-functional teams to deliver high-quality software solutions.'
+        }
+      ],
+      education: [
+        {
+          id: 'edu-1',
+          institution: 'University of Technology',
+          degree: 'Bachelor of Science in Computer Science',
+          year: '2019'
+        }
+      ],
+      contact: {
+        email: 'demo@profileai.com',
+        phone: '+1 (555) 123-4567',
+        location: 'San Francisco, CA',
+        linkedin: 'https://linkedin.com/in/demouser',
+        github: 'https://github.com/demouser'
+      }
+    };
+
+    this.profileSubject.next(demoProfile);
+    localStorage.setItem('userProfile', JSON.stringify(demoProfile));
   }
 
   updateProfile(profile: Partial<UserProfile>): void {

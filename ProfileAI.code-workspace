@@ -1,0 +1,33 @@
+{
+  "folders": [
+    {
+      "name": "ProfileAI Frontend",
+      "path": "C:\\Users\\xtrao\\source\\repos\\ProfileAI"
+    },
+    {
+      "name": "ProfileAI Backend", 
+      "path": "C:\\Users\\xtrao\\source\\repos\\ProfileAI-API"
+    }
+  ],
+  "settings": {
+    "typescript.preferences.includePackageJsonAutoImports": "on",
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/bin": true,
+      "**/obj": true,
+      "**/.vs": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/bin": true,
+      "**/obj": true
+    }
+  },
+  "extensions": {
+    "recommendations": [
+      "ms-dotnettools.csharp",
+      "angular.ng-template",
+      "ms-vscode.vscode-typescript-next"
+    ]
+  }
+}

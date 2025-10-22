@@ -1,0 +1,201 @@
+<div class="user-management-container">
+  <div class="header">
+    <h1>User Management</h1>
+    <p>Manage users, roles, and subscriptions</p>
+  </div>
+
+  <!-- Controls -->
+  <div class="controls">
+    <div class="search-filters">
+      <div class="search-box">
+        <input 
+          type="text" 
+          placeholder="Search users..." 
+          [(ngModel)]="searchTerm"
+          (input)="onSearchChange()"
+          class="search-input">
+        <i class="icon-search"></i>
+      </div>
+
+      <div class="filters">
+        <select 
+          [(ngModel)]="selectedRole" 
+          (change)="onFilterChange()"
+          class="filter-select">
+          <option value="all">All Roles</option>
+          <option value="admin">Admin</option>
+          <option value="premium">Premium</option>
+          <option value="free">Free</option>
+        </select>
+
+        <select 
+          [(ngModel)]="selectedStatus" 
+          (change)="onFilterChange()"
+          class="filter-select">
+          <option value="all">All Status</option>
+          <option value="active">Active</option>
+          <option value="inactive">Inactive</option>
+          <option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-secondary" (click)="exportUsers()">
+        <i class="icon-download"></i>
+        Export Users
+      </button>
+    </div>
+  </div>
+
+  <!-- Loading State -->
+  <div class="loading" *ngIf="isLoading">
+    <div class="spinner"></div>
+    <p>Loading users...</p>
+  </div>
+
+  <!-- Error State -->
+  <div class="error" *ngIf="error">
+    <div class="error-message">
+      <i class="icon-error"></i>
+      <p>{{ error }}</p>
+      <button class="btn btn-primary" (click)="loadUsers()">Try Again</button>
+    </div>
+  </div>
+
+  <!-- Users Table -->
+  <div class="users-table-container" *ngIf="!isLoading && !error">
+    <div class="table-header">
+      <h3>Users ({{ filteredUsers.length }} total)</h3>
+      <div class="table-actions">
+        <span class="showing">
+          Showing {{ (currentPage - 1) * itemsPerPage + 1 }} to 
+          {{ Math.min(currentPage * itemsPerPage, filteredUsers.length) }} 
+          of {{ filteredUsers.length }} users
+        </span>
+      </div>
+    </div>
+
+    <div class="table-wrapper">
+      <table class="users-table">
+        <thead>
+          <tr>
+            <th>User</th>
+            <th>Role</th>
+            <th>Status</th>
+            <th>Created</th>
+            <th>Last Login</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let user of paginatedUsers" class="user-row">
+            <td class="user-info">
+              <div class="user-avatar">
+                {{ user.firstName.charAt(0) }}{{ user.lastName.charAt(0) }}
+              </div>
+              <div class="user-details">
+                <div class="user-name">{{ user.firstName }} {{ user.lastName }}</div>
+                <div class="user-email">{{ user.email }}</div>
+              </div>
+            </td>
+            <td>
+              <select 
+                [value]="user.role" 
+                (change)="onRoleChange(user, $event)"
+                class="role-select"
+                [disabled]="user.id === authService.getCurrentUser()?.id">
+                <option value="free">Free</option>
+                <option value="premium">Premium</option>
+                <option value="admin">Admin</option>
+              </select>
+            </td>
+            <td>
+              <span class="status-badge" [ngClass]="getStatusBadgeClass(user.subscriptionStatus)">
+                {{ user.subscriptionStatus | titlecase }}
+              </span>
+            </td>
+            <td>{{ formatDate(user.createdAt) }}</td>
+            <td>{{ formatDate(user.lastLoginAt) }}</td>
+            <td class="actions-cell">
+              <div class="action-buttons">
+                <button 
+                  class="btn btn-sm btn-primary" 
+                  (click)="viewUserDetails(user)"
+                  title="View Details">
+                  <i class="icon-eye"></i>
+                </button>
+                
+                <button 
+                  *ngIf="user.subscriptionStatus === 'active'"
+                  class="btn btn-sm btn-warning" 
+                  (click)="suspendUser(user)"
+                  title="Suspend User">
+                  <i class="icon-pause"></i>
+                </button>
+                
+                <button 
+                  *ngIf="user.subscriptionStatus !== 'active'"
+                  class="btn btn-sm btn-success" 
+                  (click)="activateUser(user)"
+                  title="Activate User">
+                  <i class="icon-play"></i>
+                </button>
+                
+                <button 
+                  class="btn btn-sm btn-danger" 
+                  (click)="deleteUser(user)"
+                  title="Delete User"
+                  [disabled]="user.id === authService.getCurrentUser()?.id">
+                  <i class="icon-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="totalPages > 1">
+      <button 
+        class="btn btn-sm btn-secondary"
+        (click)="goToPage(currentPage - 1)"
+        [disabled]="currentPage === 1">
+        <i class="icon-chevron-left"></i>
+        Previous
+      </button>
+
+      <div class="page-numbers">
+        <button 
+          *ngFor="let page of getPageNumbers()"
+          class="btn btn-sm"
+          [class.btn-primary]="page === currentPage"
+          [class.btn-secondary]="page !== currentPage"
+          (click)="goToPage(page)">
+          {{ page }}
+        </button>
+      </div>
+
+      <button 
+        class="btn btn-sm btn-secondary"
+        (click)="goToPage(currentPage + 1)"
+        [disabled]="currentPage === totalPages">
+        Next
+        <i class="icon-chevron-right"></i>
+      </button>
+    </div>
+  </div>
+
+  <!-- Empty State -->
+  <div class="empty-state" *ngIf="!isLoading && !error && filteredUsers.length === 0">
+    <div class="empty-content">
+      <i class="icon-users"></i>
+      <h3>No users found</h3>
+      <p>Try adjusting your search or filter criteria</p>
+      <button class="btn btn-primary" (click)="searchTerm = ''; selectedRole = 'all'; selectedStatus = 'all'; onFilterChange()">
+        Clear Filters
+      </button>
+    </div>
+  </div>
+</div>
