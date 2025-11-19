@@ -91,13 +91,8 @@ export class PaymentCheckoutComponent implements OnInit, OnDestroy {
   }
 
   private async initializePaymentElement(): Promise<void> {
-    if (!this.paymentIntent) return;
-
     try {
-      await this.paymentService.createPaymentElement(
-        this.paymentIntent.clientSecret,
-        'payment-element'
-      );
+      await this.paymentService.createCardElement('payment-element');
     } catch (error: any) {
       this.error = error.message || 'Failed to initialize payment form';
     }
@@ -110,9 +105,19 @@ export class PaymentCheckoutComponent implements OnInit, OnDestroy {
     this.error = null;
 
     try {
-      // For subscription, we'll create the subscription directly
+      // 1) Create a Stripe PaymentMethod from the card element
+      const paymentMethodId = await this.paymentService.createPaymentMethodFromCard();
+
+      // 2) Attach PaymentMethod to the customer via API (also creates Stripe customer if needed)
+      await this.paymentService.addPaymentMethod(paymentMethodId).toPromise();
+
+      // 3) Optionally set as default
+      await this.paymentService.setDefaultPaymentMethod(paymentMethodId).toPromise();
+
+      // 4) Create subscription using the attached PaymentMethod
       const subscription = await this.paymentService.createSubscription(
-        this.selectedPlan.stripePriceId
+        this.selectedPlan.stripePriceId,
+        paymentMethodId
       ).toPromise();
 
       // Update user role

@@ -108,6 +108,9 @@
       <!-- Plan Selection for Registration -->
       <div *ngIf="showSignup" class="plan-selection">
         <label class="plan-label">Choose Your Plan</label>
+        <div class="trial-notice">
+          <p>🎉 <strong>Get 5 free trials!</strong> Try our AI research before subscribing to any plan.</p>
+        </div>
         <div class="plans-grid">
           <div 
             *ngFor="let plan of subscriptionPlans" 

@@ -69,7 +69,10 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         subscriptionId: 'sub_123',
         customerId: 'cus_123',
         createdAt: new Date('2024-01-15'),
-        lastLoginAt: new Date('2024-10-20')
+        lastLoginAt: new Date('2024-10-20'),
+        trialCount: 5,
+        trialUsed: 0,
+        trialExpiry: new Date('2024-12-20')
       },
       {
         id: '2',
@@ -79,7 +82,10 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         role: 'free',
         subscriptionStatus: 'inactive',
         createdAt: new Date('2024-02-20'),
-        lastLoginAt: new Date('2024-10-19')
+        lastLoginAt: new Date('2024-10-19'),
+        trialCount: 5,
+        trialUsed: 4,
+        trialExpiry: new Date('2024-11-20')
       },
       {
         id: '3',
@@ -89,7 +95,10 @@ export class UserManagementComponent implements OnInit, OnDestroy {
         role: 'admin',
         subscriptionStatus: 'active',
         createdAt: new Date('2024-01-01'),
-        lastLoginAt: new Date('2024-10-20')
+        lastLoginAt: new Date('2024-10-20'),
+        trialCount: 5,
+        trialUsed: 0,
+        trialExpiry: new Date('2024-12-20')
       }
     ];
   }

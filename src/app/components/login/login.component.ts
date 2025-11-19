@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { AuthService, LoginRequest, RegisterRequest } from '../../services/auth.service';
 import { PaymentService, SubscriptionPlan } from '../../services/payment.service';
 import { Observable, Subscription, firstValueFrom } from 'rxjs';
-import { Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
+import { Stripe, StripeElements } from '@stripe/stripe-js';
 
 @Component({
   selector: 'app-login',
@@ -25,7 +25,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   firstName = '';
   lastName = '';
   confirmPassword = '';
-  selectedPlan = 'basic'; // Default to basic plan (UI property)
+  selectedPlan = 'pro'; // Default to pro plan (UI property)
   
   // Plan selection
   subscriptionPlans: SubscriptionPlan[] = [];
@@ -33,7 +33,7 @@ export class LoginComponent implements OnInit, OnDestroy {
   // Payment
   stripe: Stripe | null = null;
   elements: StripeElements | null = null;
-  paymentElement: StripePaymentElement | null = null;
+  // We will render a Stripe Card Element via PaymentService for paid plans
   paymentError: string | null = null;
   paymentMethodId: string | null = null;
   
@@ -88,74 +88,28 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.selectedPlan = planId;
     this.paymentError = null;
     
-    // Initialize payment element for paid plans
+    // Render card input for paid plans; skip for basic
     if (planId !== 'basic' && this.stripe) {
-      this.initializePaymentElement();
+      // Defer to next tick to ensure #payment-element exists
+      setTimeout(() => this.initializePaymentElement());
     } else {
       this.cleanupPaymentElement();
     }
   }
 
   private async initializePaymentElement(): Promise<void> {
-    if (!this.stripe) return;
-
     try {
-      // Create payment intent for the selected plan
-      const selectedPlan = this.subscriptionPlans.find(p => p.id === this.selectedPlan);
-      if (!selectedPlan) return;
-
-      const paymentIntent = await firstValueFrom(this.paymentService.createPaymentIntent({
-        amount: selectedPlan.price,
-        currency: selectedPlan.currency,
-        planId: selectedPlan.stripePriceId
-      }));
-
-      if (!paymentIntent) {
-        this.paymentError = 'Failed to initialize payment. Please try again.';
-        return;
-      }
-
-      // Create elements
-      this.elements = this.stripe.elements({
-        clientSecret: paymentIntent.clientSecret,
-        appearance: {
-          theme: 'stripe',
-          variables: {
-            colorPrimary: '#3b82f6',
-            colorBackground: '#ffffff',
-            colorText: '#1f2937',
-            colorDanger: '#ef4444',
-            fontFamily: 'system-ui, sans-serif',
-            spacingUnit: '4px',
-            borderRadius: '8px'
-          }
-        }
-      });
-
-      // Create payment element
-      this.paymentElement = this.elements.create('payment');
-      this.paymentElement.mount('#payment-element');
-
-      // Listen for changes
-      this.paymentElement.on('change', (event) => {
-        // Clear any previous errors when the user makes changes
-        this.paymentError = null;
-      });
-
+      await this.paymentService.createCardElement('payment-element');
+      this.paymentError = null;
     } catch (error) {
-      console.error('Error initializing payment element:', error);
+      console.error('Error initializing card element:', error);
       this.paymentError = 'Failed to initialize payment form. Please try again.';
     }
   }
 
   private cleanupPaymentElement(): void {
-    if (this.paymentElement) {
-      this.paymentElement.unmount();
-      this.paymentElement = null;
-    }
-    if (this.elements) {
-      this.elements = null;
-    }
+    // Use payment service cleanup to remove elements if needed
+    this.paymentService.destroyPaymentElement();
     this.paymentError = null;
     this.paymentMethodId = null;
   }
@@ -213,14 +167,8 @@ export class LoginComponent implements OnInit, OnDestroy {
     this.isLoading = true;
     this.error = null;
 
-    // For paid plans, collect payment first
+    // For basic plan, skip payment
     if (this.selectedPlan !== 'basic') {
-      if (!this.paymentElement) {
-        this.error = 'Please wait for payment form to load';
-        this.isLoading = false;
-        return;
-      }
-
       if (this.paymentError) {
         this.error = this.paymentError;
         this.isLoading = false;
@@ -228,31 +176,14 @@ export class LoginComponent implements OnInit, OnDestroy {
       }
 
       try {
-        // Confirm payment
-        const { error, paymentIntent } = await this.stripe!.confirmPayment({
-          elements: this.elements!,
-          confirmParams: {
-            return_url: window.location.origin + '/login?success=true'
-          },
-          redirect: 'if_required'
+        // Create a Stripe PaymentMethod from the card element
+        this.paymentMethodId = await this.paymentService.createPaymentMethodFromCard({
+          name: `${this.firstName} ${this.lastName}`,
+          email: this.email
         });
-
-        if (error) {
-          this.error = error.message || 'Payment failed. Please try again.';
-          this.isLoading = false;
-          return;
-        }
-
-        if (paymentIntent && paymentIntent.status === 'succeeded') {
-          this.paymentMethodId = paymentIntent.payment_method as string;
-        } else {
-          this.error = 'Payment was not successful. Please try again.';
-          this.isLoading = false;
-          return;
-        }
-      } catch (error) {
-        console.error('Payment error:', error);
-        this.error = 'Payment failed. Please try again.';
+      } catch (error: any) {
+        console.error('Payment method error:', error);
+        this.error = error?.message || 'Failed to create payment method. Please check your card details.';
         this.isLoading = false;
         return;
       }

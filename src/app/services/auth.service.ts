@@ -14,6 +14,9 @@ export interface User {
   customerId?: string;
   createdAt: Date;
   lastLoginAt: Date;
+  trialCount: number;
+  trialUsed: number;
+  trialExpiry?: Date;
 }
 
 export interface LoginRequest {
@@ -82,12 +85,15 @@ export class AuthService {
       email: 'demo@profileai.com',
       firstName: 'Demo',
       lastName: 'User',
-      role: 'premium',
-      subscriptionStatus: 'active',
-      subscriptionId: 'demo-subscription-id',
+      role: 'free', // Changed to free to test trial system
+      subscriptionStatus: 'inactive',
+      subscriptionId: undefined,
       customerId: 'demo-customer-id',
       createdAt: new Date(),
-      lastLoginAt: new Date()
+      lastLoginAt: new Date(),
+      trialCount: 5,
+      trialUsed: 3, // Demo user has used 3 trials
+      trialExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
     };
 
     const authResponse: AuthResponse = {
@@ -171,5 +177,80 @@ export class AuthService {
 
   getAuthToken(): string | null {
     return localStorage.getItem('authToken');
+  }
+
+  // Trial management methods
+  canUseTrial(): boolean {
+    const user = this.getCurrentUser();
+    if (!user) return false;
+    
+    // Check if user has premium subscription
+    if (user.role === 'premium' && user.subscriptionStatus === 'active') {
+      return true;
+    }
+    
+    // Check trial limits
+    if (user.trialUsed >= user.trialCount) {
+      return false;
+    }
+    
+    // Check trial expiry
+    if (user.trialExpiry && new Date() > user.trialExpiry) {
+      return false;
+    }
+    
+    return true;
+  }
+
+  getRemainingTrials(): number {
+    const user = this.getCurrentUser();
+    if (!user) return 0;
+    
+    if (user.role === 'premium' && user.subscriptionStatus === 'active') {
+      return -1; // Unlimited
+    }
+    
+    return Math.max(0, user.trialCount - user.trialUsed);
+  }
+
+  useTrial(): boolean {
+    const user = this.getCurrentUser();
+    if (!user || !this.canUseTrial()) {
+      return false;
+    }
+    
+    // If user has premium subscription, no need to track trials
+    if (user.role === 'premium' && user.subscriptionStatus === 'active') {
+      return true;
+    }
+    
+    // Increment trial usage
+    user.trialUsed++;
+    
+    // Update user in localStorage and subject
+    this.currentUserSubject.next(user);
+    localStorage.setItem('currentUser', JSON.stringify(user));
+    
+    return true;
+  }
+
+  isTrialExpired(): boolean {
+    const user = this.getCurrentUser();
+    if (!user || !user.trialExpiry) return false;
+    
+    return new Date() > user.trialExpiry;
+  }
+
+  getTrialStatus(): { remaining: number; expired: boolean; hasSubscription: boolean } {
+    const user = this.getCurrentUser();
+    if (!user) {
+      return { remaining: 0, expired: true, hasSubscription: false };
+    }
+    
+    const hasSubscription = user.role === 'premium' && user.subscriptionStatus === 'active';
+    const expired = this.isTrialExpired();
+    const remaining = hasSubscription ? -1 : Math.max(0, user.trialCount - user.trialUsed);
+    
+    return { remaining, expired, hasSubscription };
   }
 }

@@ -165,6 +165,26 @@ h2 {
   font-size: 16px;
 }
 
+.trial-notice {
+  background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+  border: 1px solid #93c5fd;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 20px;
+  text-align: center;
+  
+  p {
+    margin: 0;
+    color: #1e40af;
+    font-size: 14px;
+    font-weight: 500;
+    
+    strong {
+      font-weight: 700;
+    }
+  }
+}
+
 .plans-grid {
   display: grid;
   grid-template-columns: 1fr;

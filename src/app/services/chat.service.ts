@@ -3,6 +3,7 @@ import { BehaviorSubject, Observable, Subject } from 'rxjs';
 import { HttpClient } from '@angular/common/http';
 import { timeout } from 'rxjs/operators';
 import { ConfigService } from './config.service';
+import { AuthService } from './auth.service';
 
 export interface Message {
   id: string;
@@ -22,7 +23,7 @@ export class ChatService {
   private apiCallCompleteSubject = new Subject<void>();
   public apiCallComplete$ = this.apiCallCompleteSubject.asObservable();
 
-  constructor(private http: HttpClient, private configService: ConfigService) {
+  constructor(private http: HttpClient, private configService: ConfigService, private authService: AuthService) {
     // Initialize with welcome message
     this.addMessage('Hello! I\'m ProFile AI. I can help you research and analyze professional profiles. To get started, please provide the person\'s first and last name, the business they work for, and their location. For example: "Research John Smith who works at Microsoft in Seattle, Washington"', false);
   }
@@ -42,6 +43,24 @@ export class ChatService {
 
   sendMessage(text: string): void {
     this.addMessage(text, true);
+    
+    // Check trial limits before processing
+    if (!this.authService.canUseTrial()) {
+      const trialStatus = this.authService.getTrialStatus();
+      if (trialStatus.expired) {
+        this.addMessage(this.getTrialExpiredMessage(), false);
+      } else {
+        this.addMessage(this.getTrialLimitReachedMessage(), false);
+      }
+      this.apiCallCompleteSubject.next();
+      return;
+    }
+    
+    // Use a trial if user doesn't have premium subscription
+    const user = this.authService.getCurrentUser();
+    if (user && user.role !== 'premium') {
+      this.authService.useTrial();
+    }
     
     // Call the lead research endpoint with the user's message
     this.callLeadResearchEndpoint(text).subscribe({
@@ -317,6 +336,99 @@ export class ChatService {
 
   clearMessages(): void {
     this.messagesSubject.next([]);
+  }
+
+  private getTrialLimitReachedMessage(): string {
+    const trialStatus = this.authService.getTrialStatus();
+    return `
+      <div class="trial-limit-message">
+        <div class="trial-limit-header">
+          <h3>🚫 Trial Limit Reached</h3>
+          <p>You've used all ${trialStatus.remaining + 5} of your free trials.</p>
+        </div>
+        
+        <div class="trial-limit-content">
+          <p>To continue using ProFile AI's powerful research capabilities, please choose one of our subscription plans:</p>
+          
+          <div class="subscription-options">
+            <div class="subscription-card">
+              <h4>Pro Plan - $29.99/month</h4>
+              <ul>
+                <li>Unlimited profile research</li>
+                <li>Advanced AI analysis</li>
+                <li>Priority support</li>
+                <li>Export capabilities</li>
+                <li>50 searches per month</li>
+              </ul>
+            </div>
+            
+            <div class="subscription-card">
+              <h4>Premium Plan - $49.99/month</h4>
+              <ul>
+                <li>Everything in Pro</li>
+                <li>Unlimited searches</li>
+                <li>Advanced analytics</li>
+                <li>Dedicated support</li>
+                <li>Custom reports</li>
+                <li>API access</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="trial-limit-actions">
+            <button onclick="window.location.href='/subscription'" class="btn btn-primary">
+              Choose Your Plan
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+
+  private getTrialExpiredMessage(): string {
+    return `
+      <div class="trial-expired-message">
+        <div class="trial-expired-header">
+          <h3>⏰ Trial Period Expired</h3>
+          <p>Your free trial period has ended.</p>
+        </div>
+        
+        <div class="trial-expired-content">
+          <p>To continue using ProFile AI's powerful research capabilities, please subscribe to one of our plans:</p>
+          
+          <div class="subscription-options">
+            <div class="subscription-card">
+              <h4>Pro Plan - $29.99/month</h4>
+              <ul>
+                <li>Unlimited profile research</li>
+                <li>Advanced AI analysis</li>
+                <li>Priority support</li>
+                <li>Export capabilities</li>
+                <li>50 searches per month</li>
+              </ul>
+            </div>
+            
+            <div class="subscription-card">
+              <h4>Premium Plan - $49.99/month</h4>
+              <ul>
+                <li>Everything in Pro</li>
+                <li>Unlimited searches</li>
+                <li>Advanced analytics</li>
+                <li>Dedicated support</li>
+                <li>Custom reports</li>
+                <li>API access</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div class="trial-expired-actions">
+            <button onclick="window.location.href='/subscription'" class="btn btn-primary">
+              Subscribe Now
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
   }
 
   callLeadResearchEndpoint(message: string): Observable<any> {

@@ -5,6 +5,7 @@ import { Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ChatService, Message } from '../../services/chat.service';
+import { CandidateFinderService, CandidateResult } from '../../services/candidate-finder.service';
 
 @Component({
   selector: 'app-chat',
@@ -16,7 +17,12 @@ import { ChatService, Message } from '../../services/chat.service';
 export class ChatComponent implements OnInit, OnDestroy {
   @ViewChild('messagesContainer') messagesContainer!: ElementRef;
   @ViewChild('messageInput') messageInput!: ElementRef;
+  @ViewChild('searchInput') searchInput!: ElementRef;
   
+  // Tab management
+  activeTab: 'searcher' | 'finder' = 'searcher';
+  
+  // Chat/Profile AI Searcher properties
   messages: Message[] = [];
   messageText = '';
   isTyping = false;
@@ -24,13 +30,24 @@ export class ChatComponent implements OnInit, OnDestroy {
   progressPercentage = 0;
   estimatedTimeRemaining = 0;
   currentStep = '';
+  trialStatus = { remaining: 0, expired: false, hasSubscription: false };
   private messagesSubscription?: Subscription;
   private progressInterval?: any;
+
+  // Candidate Finder properties
+  candidateSearchQuery = '';
+  candidateResults: CandidateResult[] = [];
+  isSearching = false;
+  hasSearched = false;
+  lastSearchQuery = '';
+  loadingStep = 0;
+  private loadingStepInterval?: any;
 
   constructor(
     private chatService: ChatService,
     private authService: AuthService,
-    private router: Router
+    private router: Router,
+    private candidateFinderService: CandidateFinderService
   ) {}
 
   ngOnInit(): void {
@@ -43,6 +60,9 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.chatService.apiCallComplete$.subscribe(() => {
       this.stopProgressSimulation();
     });
+
+    // Update trial status
+    this.updateTrialStatus();
   }
 
   ngOnDestroy(): void {
@@ -52,10 +72,23 @@ export class ChatComponent implements OnInit, OnDestroy {
     if (this.progressInterval) {
       clearInterval(this.progressInterval);
     }
+    if (this.loadingStepInterval) {
+      clearInterval(this.loadingStepInterval);
+    }
+  }
+
+  switchTab(tab: 'searcher' | 'finder'): void {
+    this.activeTab = tab;
   }
 
   sendMessage(): void {
     if (this.messageText.trim() && !this.isTyping && !this.isApiCallInProgress) {
+      // Check trial limits before sending
+      if (!this.authService.canUseTrial()) {
+        this.showTrialLimitModal();
+        return;
+      }
+
       const message = this.messageText.trim();
       this.messageText = '';
       this.adjustTextareaHeight();
@@ -70,6 +103,9 @@ export class ChatComponent implements OnInit, OnDestroy {
       
       this.chatService.sendMessage(message);
       this.isTyping = true;
+      
+      // Update trial status after sending
+      this.updateTrialStatus();
     }
   }
 
@@ -140,6 +176,82 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
   }
 
+  adjustSearchTextareaHeight(): void {
+    if (this.searchInput?.nativeElement) {
+      const textarea = this.searchInput.nativeElement;
+      textarea.style.height = 'auto';
+      textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+    }
+  }
+
+  onSearchEnterKey(event: Event): void {
+    const keyboardEvent = event as KeyboardEvent;
+    if (keyboardEvent.key === 'Enter' && !keyboardEvent.shiftKey) {
+      event.preventDefault();
+      this.searchCandidates();
+    }
+  }
+
+  searchCandidates(): void {
+    if (!this.candidateSearchQuery.trim() || this.isSearching) {
+      return;
+    }
+
+    const query = this.candidateSearchQuery.trim();
+    this.lastSearchQuery = query;
+    this.candidateSearchQuery = '';
+    this.adjustSearchTextareaHeight();
+    this.isSearching = true;
+    this.hasSearched = true;
+    this.candidateResults = [];
+    this.loadingStep = 0;
+
+    // Start loading animation
+    this.startLoadingAnimation();
+
+    this.candidateFinderService.searchCandidates(query).subscribe({
+      next: (response) => {
+        this.stopLoadingAnimation();
+        this.isSearching = false;
+        
+        if (response.ok && response.results && response.results.length > 0) {
+          this.candidateResults = response.results;
+        } else {
+          this.candidateResults = [];
+        }
+      },
+      error: (error) => {
+        console.error('Error searching candidates:', error);
+        this.stopLoadingAnimation();
+        this.isSearching = false;
+        this.candidateResults = [];
+      }
+    });
+  }
+
+  private startLoadingAnimation(): void {
+    this.loadingStep = 0;
+    this.loadingStepInterval = setInterval(() => {
+      this.loadingStep++;
+      if (this.loadingStep > 4) {
+        this.loadingStep = 1; // Loop back
+      }
+    }, 800);
+  }
+
+  private stopLoadingAnimation(): void {
+    if (this.loadingStepInterval) {
+      clearInterval(this.loadingStepInterval);
+      this.loadingStepInterval = undefined;
+    }
+    this.loadingStep = 4; // Show all steps as complete
+  }
+
+  onImageError(event: Event): void {
+    const img = event.target as HTMLImageElement;
+    img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
+  }
+
   scrollToBottom(): void {
     if (this.messagesContainer) {
       const element = this.messagesContainer.nativeElement;
@@ -164,6 +276,43 @@ export class ChatComponent implements OnInit, OnDestroy {
       return `${minutes}m ${remainingSeconds}s`;
     } else {
       return `${remainingSeconds}s`;
+    }
+  }
+
+  updateTrialStatus(): void {
+    this.trialStatus = this.authService.getTrialStatus();
+  }
+
+  showTrialLimitModal(): void {
+    // For now, we'll show an alert. In a real app, you'd show a proper modal
+    const trialStatus = this.authService.getTrialStatus();
+    if (trialStatus.expired) {
+      alert('Your trial period has expired. Please subscribe to continue using ProFile AI.');
+    } else {
+      alert(`You've used all your free trials. Please subscribe to continue using ProFile AI.`);
+    }
+    this.router.navigate(['/subscription']);
+  }
+
+  getTrialStatusText(): string {
+    if (this.trialStatus.hasSubscription) {
+      return 'Unlimited';
+    } else if (this.trialStatus.expired) {
+      return 'Expired';
+    } else {
+      return `${this.trialStatus.remaining} remaining`;
+    }
+  }
+
+  getTrialStatusClass(): string {
+    if (this.trialStatus.hasSubscription) {
+      return 'trial-unlimited';
+    } else if (this.trialStatus.expired || this.trialStatus.remaining === 0) {
+      return 'trial-expired';
+    } else if (this.trialStatus.remaining <= 2) {
+      return 'trial-warning';
+    } else {
+      return 'trial-ok';
     }
   }
 

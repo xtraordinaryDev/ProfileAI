@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject } from 'rxjs';
-import { loadStripe, Stripe, StripeElements, StripePaymentElement } from '@stripe/stripe-js';
+import { loadStripe, Stripe, StripeElements, StripePaymentElement, StripeCardElement } from '@stripe/stripe-js';
 import { environment } from '../../environments/environment';
 
 export interface SubscriptionPlan {
@@ -60,6 +60,7 @@ export class PaymentService {
   private stripe: Stripe | null = null;
   private elements: StripeElements | null = null;
   private paymentElement: StripePaymentElement | null = null;
+  private cardElement: StripeCardElement | null = null;
   
   private readonly API_BASE = environment.apiUrl;
   private readonly STRIPE_PUBLISHABLE_KEY = environment.stripePublishableKey;
@@ -101,21 +102,6 @@ export class PaymentService {
   private loadDefaultPlans(): void {
     // Fallback subscription plans if backend is unavailable
     const subscriptionPlans: SubscriptionPlan[] = [
-      {
-        id: 'basic',
-        name: 'Basic Plan',
-        description: 'Essential features for getting started',
-        price: 0, // Free plan
-        currency: 'usd',
-        interval: 'month',
-        features: [
-          'Basic profile research',
-          'Limited AI suggestions',
-          'Email support',
-          '5 searches per month'
-        ],
-        stripePriceId: environment.pricingPlans.basic
-      },
       {
         id: 'pro',
         name: 'Pro Plan',
@@ -270,7 +256,7 @@ export class PaymentService {
     return this.http.get<Subscription>(`${this.API_BASE}/subscriptions/${subscriptionId}`);
   }
 
-  // Stripe Elements Integration
+  // Stripe Elements Integration - Payment Element (not used for PM creation)
   async createPaymentElement(clientSecret: string, elementId: string): Promise<void> {
     if (!this.stripe) {
       throw new Error('Stripe not initialized');
@@ -313,11 +299,54 @@ export class PaymentService {
     }
   }
 
+  // Card Element for PaymentMethod creation (for subscriptions)
+  async createCardElement(elementId: string): Promise<void> {
+    if (!this.stripe) {
+      throw new Error('Stripe not initialized');
+    }
+
+    this.elements = this.stripe.elements({
+      appearance: {
+        theme: 'stripe',
+        variables: {
+          colorPrimary: '#0570de',
+          colorBackground: '#ffffff',
+          colorText: '#30313d',
+          colorDanger: '#df1b41',
+          fontFamily: 'Ideal Sans, system-ui, sans-serif',
+          spacingUnit: '2px',
+          borderRadius: '4px',
+        }
+      }
+    });
+
+    this.cardElement = this.elements.create('card');
+    await this.cardElement.mount(`#${elementId}`);
+  }
+
+  async createPaymentMethodFromCard(billingDetails?: { name?: string; email?: string }): Promise<string> {
+    if (!this.stripe || !this.cardElement) {
+      throw new Error('Stripe or card element not initialized');
+    }
+
+    const result = await this.stripe.createPaymentMethod({
+      type: 'card',
+      card: this.cardElement,
+      billing_details: billingDetails
+    } as any);
+
+    if (result.error || !result.paymentMethod) {
+      throw new Error(result.error?.message || 'Failed to create payment method');
+    }
+
+    return result.paymentMethod.id;
+  }
+
   // One-time Payments (using the subscription version above)
 
   // Webhooks (for handling Stripe events)
   handleWebhook(payload: any, signature: string): Observable<any> {
-    return this.http.post(`${this.API_BASE}/webhooks/stripe`, {
+    return this.http.post(`${this.API_BASE}/payments/webhooks/stripe`, {
       payload,
       signature
     });
@@ -348,6 +377,12 @@ export class PaymentService {
     if (this.paymentElement) {
       this.paymentElement.destroy();
       this.paymentElement = null;
+    }
+    if (this.cardElement) {
+      try {
+        this.cardElement.unmount();
+      } catch {}
+      this.cardElement = null;
     }
     if (this.elements) {
       this.elements = null;
