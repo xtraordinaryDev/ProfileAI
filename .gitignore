@@ -117,3 +117,7 @@ jspm_packages/
 
 # Angular specific
 .angular/
+
+# Environment files with secrets (uncomment if you want to ignore environment files)
+# src/environments/environment.ts
+# src/environments/environment.prod.ts
