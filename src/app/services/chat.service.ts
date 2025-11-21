@@ -42,7 +42,16 @@ export class ChatService {
   }
 
   sendMessage(text: string): void {
-    this.addMessage(text, true);
+    // Standard flow: what the user typed is both the displayed text and the payload
+    this.sendMessageWithPayload(text, text);
+  }
+
+  /**
+   * Send a message where the displayed user bubble text can differ from the
+   * payload sent to the research API (e.g., show name/title but send LinkedIn URL).
+   */
+  sendMessageWithPayload(displayText: string, payload: string): void {
+    this.addMessage(displayText, true);
     
     // Check trial limits before processing
     if (!this.authService.canUseTrial()) {
@@ -62,8 +71,8 @@ export class ChatService {
       this.authService.useTrial();
     }
     
-    // Call the lead research endpoint with the user's message
-    this.callLeadResearchEndpoint(text).subscribe({
+    // Call the lead research endpoint with the payload
+    this.callLeadResearchEndpoint(payload).subscribe({
       next: (response: any) => {
         console.log('Raw response:', response);
         
@@ -100,7 +109,7 @@ export class ChatService {
         // If JSON parsing failed, try with text response
         if (error.status === 0 || error.message?.includes('JSON')) {
           console.log('JSON parsing failed, trying text response...');
-          this.http.post('https://xtraordinary.app.n8n.cloud/webhook-test/lead-research', { message: text }, { 
+          this.http.post('https://xtraordinary.app.n8n.cloud/webhook-test/lead-research', { message: payload }, { 
             responseType: 'text'
           }).pipe(timeout(300000)).subscribe({
             next: (textResponse: string) => {
@@ -288,7 +297,7 @@ export class ChatService {
   private handleApiError(error: any): void {
     let errorMessage = '';
     if (error.name === 'TimeoutError' || error.message?.includes('timeout')) {
-      errorMessage = '⏰ The research request timed out after 5 minutes. The research process is taking longer than expected. Please try again with a more specific query or contact support if the issue persists.';
+      errorMessage = '⏰ The research request timed out after 10 minutes. The research process is taking longer than expected. Please try again with a more specific query or contact support if the issue persists.';
     } else if (error.status === 404) {
       errorMessage = '🔍 The research endpoint is currently unavailable. Please try again later or contact support.';
     } else if (error.status >= 500) {
@@ -344,7 +353,7 @@ export class ChatService {
       <div class="trial-limit-message">
         <div class="trial-limit-header">
           <h3>🚫 Trial Limit Reached</h3>
-          <p>You've used all ${trialStatus.remaining + 5} of your free trials.</p>
+          <p>You've used all ${trialStatus.remaining + 50} of your free trials.</p>
         </div>
         
         <div class="trial-limit-content">
@@ -441,13 +450,13 @@ export class ChatService {
     console.log('Sending payload to endpoint:', JSON.stringify(payload, null, 2));
     console.log('Using profile research API:', endpoint);
     
-    // Set timeout to 5 minutes (300000ms) for long-running research
+    // Set timeout to 10 minutes (600000ms) for long-running research
     // Try JSON first, fallback to text if needed
     return this.http.post(endpoint, payload, { 
       responseType: 'json'
     }).pipe(
       // Add timeout handling
-      timeout(300000) // 5 minutes timeout
+      timeout(600000) // 10 minutes timeout
     );
   }
 }

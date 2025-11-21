@@ -24,6 +24,7 @@ export interface CandidateSearchResponse {
 })
 export class CandidateFinderService {
   private readonly apiUrl = 'https://xtraordinary.app.n8n.cloud/webhook-test/people-search-freeform';
+  private readonly deepResearchUrl = 'https://xtraordinary.app.n8n.cloud/webhook-test/lead-research';
 
   constructor(private http: HttpClient) {}
 
@@ -34,6 +35,16 @@ export class CandidateFinderService {
 
     return this.http.post<CandidateSearchResponse>(this.apiUrl, payload).pipe(
       timeout(60000) // 60 second timeout
+    );
+  }
+
+  deepResearchCandidate(query: string): Observable<any> {
+    const payload = {
+      message: query
+    };
+
+    return this.http.post<any>(this.deepResearchUrl, payload).pipe(
+      timeout(300000) // 5 minute timeout for deep research
     );
   }
 }

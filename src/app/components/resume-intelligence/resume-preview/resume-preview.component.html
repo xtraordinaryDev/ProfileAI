@@ -1,0 +1,154 @@
+<mat-card *ngIf="resumeData" class="preview-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>person</mat-icon>
+      {{ resumeData.name || 'Resume Preview' }}
+    </mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- Contact Information -->
+    <mat-expansion-panel [(expanded)]="panelOpenState.contact">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>contact_mail</mat-icon>
+          Contact Information
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <div *ngIf="resumeData.contact" class="contact-info">
+        <p *ngIf="resumeData.contact.email">
+          <mat-icon>email</mat-icon>
+          <a [href]="'mailto:' + resumeData.contact.email">{{ resumeData.contact.email }}</a>
+        </p>
+        <p *ngIf="resumeData.contact.phone">
+          <mat-icon>phone</mat-icon>
+          {{ resumeData.contact.phone }}
+        </p>
+        <p *ngIf="resumeData.contact.location">
+          <mat-icon>location_on</mat-icon>
+          {{ resumeData.contact.location }}
+        </p>
+        <p *ngIf="resumeData.contact.linkedIn">
+          <mat-icon>link</mat-icon>
+          <a [href]="resumeData.contact.linkedIn" target="_blank">LinkedIn Profile</a>
+        </p>
+        <p *ngIf="resumeData.contact.website">
+          <mat-icon>language</mat-icon>
+          <a [href]="resumeData.contact.website" target="_blank">Website</a>
+        </p>
+      </div>
+    </mat-expansion-panel>
+
+    <!-- Summary -->
+    <mat-expansion-panel *ngIf="resumeData.summary" [(expanded)]="panelOpenState.summary">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>description</mat-icon>
+          Summary
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <p class="summary-text">{{ resumeData.summary }}</p>
+    </mat-expansion-panel>
+
+    <!-- Education -->
+    <mat-expansion-panel [(expanded)]="panelOpenState.education">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>school</mat-icon>
+          Education ({{ resumeData.education.length }})
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <div *ngIf="resumeData.education.length > 0; else noEducation" class="education-list">
+        <div *ngFor="let edu of resumeData.education" class="education-item">
+          <h4>{{ edu.degree }}</h4>
+          <p *ngIf="edu.field">{{ edu.field }}</p>
+          <p class="institution">{{ edu.institution }}</p>
+          <p class="dates" *ngIf="edu.startDate || edu.endDate">
+            {{ edu.startDate }} - {{ edu.endDate || 'Present' }}
+          </p>
+          <p *ngIf="edu.grade" class="grade">Grade: {{ edu.grade }}</p>
+        </div>
+      </div>
+      <ng-template #noEducation>
+        <p class="no-data">No education information found</p>
+      </ng-template>
+    </mat-expansion-panel>
+
+    <!-- Employment -->
+    <mat-expansion-panel [(expanded)]="panelOpenState.employment">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>work</mat-icon>
+          Employment History ({{ resumeData.employment.length }})
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <div *ngIf="resumeData.employment.length > 0; else noEmployment" class="employment-list">
+        <div *ngFor="let emp of resumeData.employment" class="employment-item">
+          <div class="employment-header">
+            <h4>{{ emp.title }}</h4>
+            <span class="current-badge" *ngIf="emp.isCurrent">Current</span>
+          </div>
+          <p class="company">{{ emp.company }}</p>
+          <p class="location" *ngIf="emp.location">
+            <mat-icon>location_on</mat-icon>
+            {{ emp.location }}
+          </p>
+          <p class="dates">
+            {{ emp.startDate }} - {{ emp.isCurrent ? 'Present' : emp.endDate }}
+          </p>
+          <p *ngIf="emp.description" class="description">{{ emp.description }}</p>
+        </div>
+      </div>
+      <ng-template #noEmployment>
+        <p class="no-data">No employment history found</p>
+      </ng-template>
+    </mat-expansion-panel>
+
+    <!-- Skills -->
+    <mat-expansion-panel [(expanded)]="panelOpenState.skills">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>star</mat-icon>
+          Skills ({{ resumeData.skills.length }})
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <div *ngIf="resumeData.skills.length > 0; else noSkills" class="skills-list">
+        <div class="chip-container">
+          <span class="chip" *ngFor="let skill of resumeData.skills">{{ skill }}</span>
+        </div>
+      </div>
+      <ng-template #noSkills>
+        <p class="no-data">No skills found</p>
+      </ng-template>
+    </mat-expansion-panel>
+
+    <!-- Certifications -->
+    <mat-expansion-panel [(expanded)]="panelOpenState.certifications">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          <mat-icon>verified</mat-icon>
+          Certifications ({{ resumeData.certifications.length }})
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <div *ngIf="resumeData.certifications.length > 0; else noCertifications" class="certifications-list">
+        <div *ngFor="let cert of resumeData.certifications" class="certification-item">
+          <h4>{{ cert.name }}</h4>
+          <p class="issuer">{{ cert.issuer }}</p>
+          <p class="dates" *ngIf="cert.issueDate">
+            Issued: {{ cert.issueDate }}
+            <span *ngIf="cert.expiryDate"> - Expires: {{ cert.expiryDate }}</span>
+          </p>
+          <p *ngIf="cert.credentialId" class="credential-id">ID: {{ cert.credentialId }}</p>
+        </div>
+      </div>
+      <ng-template #noCertifications>
+        <p class="no-data">No certifications found</p>
+      </ng-template>
+    </mat-expansion-panel>
+  </mat-card-content>
+</mat-card>
+
+<div *ngIf="!resumeData" class="no-resume">
+  <mat-icon>description</mat-icon>
+  <p>No resume data to preview</p>
+</div>

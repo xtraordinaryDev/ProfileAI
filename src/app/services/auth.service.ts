@@ -91,8 +91,8 @@ export class AuthService {
       customerId: 'demo-customer-id',
       createdAt: new Date(),
       lastLoginAt: new Date(),
-      trialCount: 5,
-      trialUsed: 3, // Demo user has used 3 trials
+      trialCount: 50,
+      trialUsed: 0, // Reset demo usage
       trialExpiry: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days from now
     };
 

@@ -6,11 +6,26 @@ import { Subscription } from 'rxjs';
 import { AuthService } from '../../services/auth.service';
 import { ChatService, Message } from '../../services/chat.service';
 import { CandidateFinderService, CandidateResult } from '../../services/candidate-finder.service';
+import { ResumeIntelligenceService, ResumeParseResponse, ParsedResumeData } from '../../services/resume-intelligence.service';
+import { ResumeUploadComponent } from '../resume-intelligence/resume-upload/resume-upload.component';
+import { ResumePreviewComponent } from '../resume-intelligence/resume-preview/resume-preview.component';
+import { ResumeInsightsComponent } from '../resume-intelligence/resume-insights/resume-insights.component';
+import { MatIconModule } from '@angular/material/icon';
+import { MatButtonModule } from '@angular/material/button';
+import { jsPDF } from 'jspdf';
 
 @Component({
   selector: 'app-chat',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    ResumeUploadComponent,
+    ResumePreviewComponent,
+    ResumeInsightsComponent,
+    MatIconModule,
+    MatButtonModule
+  ],
   templateUrl: './chat.component.html',
   styleUrl: './chat.component.scss'
 })
@@ -20,7 +35,7 @@ export class ChatComponent implements OnInit, OnDestroy {
   @ViewChild('searchInput') searchInput!: ElementRef;
   
   // Tab management
-  activeTab: 'searcher' | 'finder' = 'searcher';
+  activeTab: 'searcher' | 'finder' | 'resume' = 'searcher';
   
   // Chat/Profile AI Searcher properties
   messages: Message[] = [];
@@ -43,11 +58,17 @@ export class ChatComponent implements OnInit, OnDestroy {
   loadingStep = 0;
   private loadingStepInterval?: any;
 
+  // Resume Intelligence properties
+  currentResumeId?: string;
+  currentResumeData?: ParsedResumeData;
+  resumeError?: string;
+
   constructor(
     private chatService: ChatService,
     private authService: AuthService,
     private router: Router,
-    private candidateFinderService: CandidateFinderService
+    private candidateFinderService: CandidateFinderService,
+    private resumeIntelligenceService: ResumeIntelligenceService
   ) {}
 
   ngOnInit(): void {
@@ -77,52 +98,78 @@ export class ChatComponent implements OnInit, OnDestroy {
     }
   }
 
-  switchTab(tab: 'searcher' | 'finder'): void {
+  switchTab(tab: 'searcher' | 'finder' | 'resume'): void {
     this.activeTab = tab;
+  }
+
+  onResumeParsed(response: ResumeParseResponse): void {
+    if (response.success && response.data) {
+      this.currentResumeId = response.id;
+      this.currentResumeData = response.data;
+      this.resumeError = undefined;
+    } else {
+      this.resumeError = response.errorMessage || 'Failed to parse resume';
+    }
+  }
+
+  onResumeError(error: string): void {
+    this.resumeError = error;
   }
 
   sendMessage(): void {
     if (this.messageText.trim() && !this.isTyping && !this.isApiCallInProgress) {
-      // Check trial limits before sending
-      if (!this.authService.canUseTrial()) {
-        this.showTrialLimitModal();
-        return;
-      }
-
       const message = this.messageText.trim();
       this.messageText = '';
       this.adjustTextareaHeight();
-      
-      this.isApiCallInProgress = true;
-      this.progressPercentage = 0;
-      this.estimatedTimeRemaining = 60; // 1 minute estimated
-      this.currentStep = 'Initializing research...';
-      
-      // Start progress simulation
-      this.startProgressSimulation();
-      
-      this.chatService.sendMessage(message);
-      this.isTyping = true;
-      
-      // Update trial status after sending
-      this.updateTrialStatus();
+      this.sendPreparedMessage(message, message);
     }
   }
 
+  /**
+   * Shared send logic used by normal chat and deep research:
+   * - displayText: what shows in the chat bubble
+   * - payload: what gets sent to the research API
+   */
+  private sendPreparedMessage(displayText: string, payload: string): void {
+    if (!displayText || this.isTyping || this.isApiCallInProgress) {
+      return;
+    }
+
+    // Check trial limits before sending
+    if (!this.authService.canUseTrial()) {
+      this.showTrialLimitModal();
+      return;
+    }
+
+    this.isApiCallInProgress = true;
+    this.progressPercentage = 0;
+    this.currentStep = 'Initializing research...';
+    
+    // Start progress simulation
+    this.startProgressSimulation();
+    
+    this.chatService.sendMessageWithPayload(displayText, payload);
+    this.isTyping = true;
+    
+    // Update trial status after sending
+    this.updateTrialStatus();
+  }
+
   private startProgressSimulation(): void {
+    // Total ~105 seconds (45 seconds longer than before)
     const steps = [
-      { step: 'Initializing research...', duration: 10 }, // 10 seconds
-      { step: 'Gathering LinkedIn data...', duration: 12 }, // 12 seconds
-      { step: 'Analyzing company information...', duration: 15 }, // 15 seconds
-      { step: 'Searching for opportunities...', duration: 13 }, // 13 seconds
-      { step: 'Generating comprehensive report...', duration: 8 }, // 8 seconds
-      { step: 'Finalizing results...', duration: 2 } // 2 seconds
+      { step: 'Initializing research...', duration: 15 },
+      { step: 'Gathering LinkedIn data...', duration: 18 },
+      { step: 'Analyzing company information...', duration: 24 },
+      { step: 'Searching for opportunities...', duration: 24 },
+      { step: 'Generating comprehensive report...', duration: 18 },
+      { step: 'Finalizing results...', duration: 6 }
     ];
 
     let currentStepIndex = 0;
     let stepElapsedTime = 0;
     let totalElapsedTime = 0;
-    const totalTime = 60; // 60 seconds total
+    const totalTime = steps.reduce((sum, s) => sum + s.duration, 0);
 
     this.progressInterval = setInterval(() => {
       if (currentStepIndex < steps.length) {
@@ -247,6 +294,24 @@ export class ChatComponent implements OnInit, OnDestroy {
     this.loadingStep = 4; // Show all steps as complete
   }
 
+  deepResearchCandidate(candidate: CandidateResult, index: number): void {
+    // For deep research, send only the LinkedIn URL to the API,
+    // but show name/title in the chat bubble for the user.
+    const linkedinUrl = candidate.linkedin_url || '';
+    if (!linkedinUrl) {
+      return; // Nothing to send if no LinkedIn URL
+    }
+
+    const displayText = `${candidate.name}${candidate.title ? ' - ' + candidate.title : ''}`;
+
+    // Switch to Profile AI Searcher tab
+    this.switchTab('searcher');
+
+    // Use shared send logic so progress bar, steps, and timers work
+    this.sendPreparedMessage(displayText, linkedinUrl.trim());
+  }
+
+
   onImageError(event: Event): void {
     const img = event.target as HTMLImageElement;
     img.src = 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwIiBoZWlnaHQ9IjEwMCIgZmlsbD0iI2U1ZTdlYiIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTQiIGZpbGw9IiM5Y2EzYWYiIHRleHQtYW5jaG9yPSJtaWRkbGUiIGR5PSIuM2VtIj5ObyBJbWFnZTwvdGV4dD48L3N2Zz4=';
@@ -353,27 +418,44 @@ export class ChatComponent implements OnInit, OnDestroy {
     try {
       // Create a complete HTML document optimized for PDF
       const completeHtml = this.createPdfOptimizedHtmlDocument(htmlContent);
-      
-      // Open in new window for printing
-      const printWindow = window.open('', '_blank');
-      if (!printWindow) {
-        throw new Error('Unable to open print window. Please check your popup blocker settings.');
+
+      // Render the HTML into a hidden iframe and use jsPDF to generate a real PDF.
+      const iframe = document.createElement('iframe');
+      iframe.style.position = 'fixed';
+      iframe.style.left = '-9999px';
+      iframe.style.top = '0';
+      document.body.appendChild(iframe);
+
+      const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
+      if (!iframeDoc) {
+        throw new Error('Unable to create print frame for PDF generation.');
       }
-      
-      printWindow.document.write(completeHtml);
-      printWindow.document.close();
-      
-      // Wait for content to load, then trigger print dialog
-      printWindow.onload = () => {
-        setTimeout(() => {
-          printWindow.print();
-          // Close the window after printing (or user cancels)
-          setTimeout(() => {
-            printWindow.close();
-          }, 1000);
-        }, 500);
+
+      iframeDoc.open();
+      iframeDoc.write(completeHtml);
+      iframeDoc.close();
+
+      iframe.onload = () => {
+        try {
+          const pdf = new jsPDF('p', 'pt', 'a4');
+          const safeTimestamp = timestamp.toISOString().replace(/[:.]/g, '-');
+
+          pdf.html(iframeDoc.body, {
+            callback: (generatedDoc: any) => {
+              generatedDoc.save(`profile-ai-report-${safeTimestamp}.pdf`);
+              document.body.removeChild(iframe);
+            },
+            margin: [40, 40, 40, 40],
+            autoPaging: 'text',
+            windowWidth: 1024
+          });
+        } catch (innerError) {
+          console.error('Error during PDF generation:', innerError);
+          document.body.removeChild(iframe);
+          alert('Unable to generate PDF. Please try again or check your browser settings.');
+        }
       };
-      
+
       console.log('PDF generation initiated');
     } catch (error) {
       console.error('Error generating PDF:', error);

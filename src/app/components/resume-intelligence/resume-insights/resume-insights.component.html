@@ -1,0 +1,189 @@
+<mat-card *ngIf="enrichedData || isEnriching" class="insights-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>insights</mat-icon>
+      AI-Powered Insights
+    </mat-card-title>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- Loading State -->
+    <div *ngIf="isEnriching" class="loading-state">
+      <mat-progress-bar mode="indeterminate"></mat-progress-bar>
+      <p>Generating AI insights...</p>
+    </div>
+
+    <!-- Error State -->
+    <div *ngIf="error" class="error-state">
+      <mat-icon color="warn">error</mat-icon>
+      <p>{{ error }}</p>
+      <button mat-raised-button color="primary" (click)="enrichResume()">
+        <mat-icon>refresh</mat-icon>
+        Retry
+      </button>
+    </div>
+
+    <!-- Insights Content -->
+    <div *ngIf="enrichedData && !isEnriching">
+      <!-- Candidate Summary -->
+      <mat-expansion-panel *ngIf="enrichedData.summary" [(expanded)]="panelOpenState.summary">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon>person</mat-icon>
+            Candidate Summary
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="summary-content">
+          <div *ngIf="enrichedData.summary.professionalSummary">
+            <h4>Professional Summary</h4>
+            <p>{{ enrichedData.summary.professionalSummary }}</p>
+          </div>
+          <div *ngIf="enrichedData.summary.keyStrengths">
+            <h4>Key Strengths</h4>
+            <p>{{ enrichedData.summary.keyStrengths }}</p>
+          </div>
+          <div *ngIf="enrichedData.summary.careerHighlights">
+            <h4>Career Highlights</h4>
+            <p>{{ enrichedData.summary.careerHighlights }}</p>
+          </div>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Seniority Level -->
+      <mat-expansion-panel *ngIf="enrichedData.seniority" [(expanded)]="panelOpenState.seniority">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon>trending_up</mat-icon>
+            Seniority Level
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="seniority-content">
+          <div class="seniority-badge" [style.background-color]="getSeniorityColor(enrichedData.seniority.level)">
+            <span class="level">{{ enrichedData.seniority.level }}</span>
+            <span class="confidence" *ngIf="enrichedData.seniority.confidence">
+              {{ (enrichedData.seniority.confidence * 100).toFixed(0) }}% confidence
+            </span>
+          </div>
+          <p *ngIf="enrichedData.seniority.reasoning" class="reasoning">
+            {{ enrichedData.seniority.reasoning }}
+          </p>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Skill Categories -->
+      <mat-expansion-panel *ngIf="enrichedData.skillCategories" [(expanded)]="panelOpenState.skills">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon>category</mat-icon>
+            Skill Categories
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="skill-categories">
+          <div *ngIf="enrichedData.skillCategories.technical.length > 0" class="skill-category">
+            <h4>Technical Skills</h4>
+            <div class="chip-container">
+              <span class="chip" *ngFor="let skill of enrichedData.skillCategories.technical">{{ skill }}</span>
+            </div>
+          </div>
+          <div *ngIf="enrichedData.skillCategories.soft.length > 0" class="skill-category">
+            <h4>Soft Skills</h4>
+            <div class="chip-container">
+              <span class="chip" *ngFor="let skill of enrichedData.skillCategories.soft">{{ skill }}</span>
+            </div>
+          </div>
+          <div *ngIf="enrichedData.skillCategories.domain.length > 0" class="skill-category">
+            <h4>Domain Expertise</h4>
+            <div class="chip-container">
+              <span class="chip" *ngFor="let skill of enrichedData.skillCategories.domain">{{ skill }}</span>
+            </div>
+          </div>
+          <div *ngIf="enrichedData.skillCategories.tools.length > 0" class="skill-category">
+            <h4>Tools & Platforms</h4>
+            <div class="chip-container">
+              <span class="chip" *ngFor="let skill of enrichedData.skillCategories.tools">{{ skill }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="enrichedData.normalizedSkills.length > 0" class="normalized-skills">
+          <h4>Normalized Skills</h4>
+          <div class="chip-container">
+            <span class="chip chip-primary" *ngFor="let skill of enrichedData.normalizedSkills">{{ skill }}</span>
+          </div>
+        </div>
+
+        <div *ngIf="enrichedData.inferredSkills.length > 0" class="inferred-skills">
+          <h4>Inferred Skills</h4>
+          <div class="chip-container">
+            <span class="chip chip-accent" *ngFor="let skill of enrichedData.inferredSkills">{{ skill }}</span>
+          </div>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Employment Timeline -->
+      <mat-expansion-panel *ngIf="enrichedData.employmentTimeline" [(expanded)]="panelOpenState.timeline">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon>timeline</mat-icon>
+            Employment Timeline
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="timeline-content">
+          <div *ngFor="let entry of enrichedData.employmentTimeline.entries" class="timeline-entry">
+            <div class="timeline-marker"></div>
+            <div class="timeline-details">
+              <h4>{{ entry.title }}</h4>
+              <p class="organization">{{ entry.organization }}</p>
+              <p class="dates">
+                {{ entry.startDate | date:'MMM yyyy' }} - 
+                {{ entry.isCurrent ? 'Present' : (entry.endDate | date:'MMM yyyy') }}
+              </p>
+            </div>
+          </div>
+
+          <div *ngIf="enrichedData.employmentTimeline.gaps.length > 0" class="timeline-gaps">
+            <h4>Detected Gaps</h4>
+            <div *ngFor="let gap of enrichedData.employmentTimeline.gaps" class="gap-item">
+              <mat-icon>schedule</mat-icon>
+              <span>{{ gap.days }} days gap</span>
+              <span class="gap-dates">
+                {{ gap.startDate | date:'MMM yyyy' }} - {{ gap.endDate | date:'MMM yyyy' }}
+              </span>
+            </div>
+          </div>
+        </div>
+      </mat-expansion-panel>
+
+      <!-- Salary Expectation -->
+      <mat-expansion-panel *ngIf="enrichedData.salaryExpectation" [(expanded)]="panelOpenState.salary">
+        <mat-expansion-panel-header>
+          <mat-panel-title>
+            <mat-icon>attach_money</mat-icon>
+            Salary Expectation
+          </mat-panel-title>
+        </mat-expansion-panel-header>
+        <div class="salary-content">
+          <div class="salary-range">
+            <span class="salary-amount">
+              {{ enrichedData.salaryExpectation.currency }} {{ enrichedData.salaryExpectation.min | number:'1.0-0' }} - 
+              {{ enrichedData.salaryExpectation.max | number:'1.0-0' }}
+            </span>
+            <span class="salary-period">{{ enrichedData.salaryExpectation.period }}</span>
+          </div>
+          <p *ngIf="enrichedData.salaryExpectation.reasoning" class="reasoning">
+            {{ enrichedData.salaryExpectation.reasoning }}
+          </p>
+        </div>
+      </mat-expansion-panel>
+    </div>
+  </mat-card-content>
+</mat-card>
+
+<div *ngIf="!enrichedData && !isEnriching && !error" class="no-insights">
+  <mat-icon>insights</mat-icon>
+  <p>Click "Generate Insights" to analyze the resume</p>
+  <button mat-raised-button color="primary" (click)="enrichResume()">
+    <mat-icon>auto_awesome</mat-icon>
+    Generate Insights
+  </button>
+</div>

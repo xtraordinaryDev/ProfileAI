@@ -1,0 +1,84 @@
+<mat-card class="upload-card">
+  <mat-card-header>
+    <mat-card-title>
+      <mat-icon>upload_file</mat-icon>
+      Upload Resume
+    </mat-card-title>
+    <mat-card-subtitle>Upload PDF, DOCX, or image files (max 10MB)</mat-card-subtitle>
+  </mat-card-header>
+
+  <mat-card-content>
+    <!-- File Upload Area -->
+    <div 
+      class="upload-area"
+      [class.drag-over]="dragOver"
+      (dragover)="onDragOver($event)"
+      (dragleave)="onDragLeave($event)"
+      (drop)="onDrop($event)"
+    >
+      <input
+        type="file"
+        #fileInput
+        [accept]="acceptedFormats.join(',')"
+        (change)="onFileSelected($event)"
+        style="display: none"
+      />
+
+      <div *ngIf="!selectedFile && !fileUrl" class="upload-placeholder">
+        <mat-icon class="upload-icon">cloud_upload</mat-icon>
+        <p>Drag and drop your resume here</p>
+        <p class="upload-hint">or</p>
+        <button mat-raised-button color="primary" (click)="fileInput.click()">
+          <mat-icon>folder_open</mat-icon>
+          Browse Files
+        </button>
+        <p class="format-hint">Supported: PDF, DOCX, DOC, TXT, JPG, PNG</p>
+      </div>
+
+      <div *ngIf="selectedFile" class="file-selected">
+        <mat-icon class="file-icon">description</mat-icon>
+        <div class="file-info">
+          <p class="file-name">{{ selectedFile.name }}</p>
+          <p class="file-size">{{ getFileSize(selectedFile.size) }}</p>
+        </div>
+        <button mat-icon-button (click)="removeFile()" color="warn">
+          <mat-icon>close</mat-icon>
+        </button>
+      </div>
+    </div>
+
+    <!-- URL Input -->
+    <div class="url-input-section">
+      <p class="divider">OR</p>
+      <input
+        type="text"
+        [(ngModel)]="fileUrl"
+        (input)="onUrlInput()"
+        placeholder="Enter resume URL"
+        class="url-input"
+      />
+    </div>
+
+    <!-- Progress Bar -->
+    <mat-progress-bar
+      *ngIf="isUploading"
+      mode="determinate"
+      [value]="uploadProgress"
+      class="upload-progress"
+    ></mat-progress-bar>
+  </mat-card-content>
+
+  <mat-card-actions>
+    <button
+      mat-raised-button
+      color="primary"
+      (click)="uploadResume()"
+      [disabled]="(!selectedFile && !fileUrl) || isUploading"
+      class="upload-button"
+    >
+      <mat-icon>upload</mat-icon>
+      <span *ngIf="!isUploading">Parse Resume</span>
+      <span *ngIf="isUploading">Parsing...</span>
+    </button>
+  </mat-card-actions>
+</mat-card>

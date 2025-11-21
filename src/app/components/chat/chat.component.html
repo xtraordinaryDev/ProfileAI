@@ -52,6 +52,20 @@
           </svg>
           <span>Candidate Finder</span>
         </button>
+        <button 
+          class="tab-button" 
+          [class.active]="activeTab === 'resume'"
+          (click)="switchTab('resume')"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14,2 14,8 20,8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10,9 9,9 8,9"></polyline>
+          </svg>
+          <span>Resume Intelligence</span>
+        </button>
       </nav>
     </aside>
 
@@ -275,7 +289,7 @@
               <p class="results-subtitle">Based on your search: "{{ lastSearchQuery }}"</p>
             </div>
             <div class="candidates-grid">
-              <div class="candidate-card" *ngFor="let candidate of candidateResults">
+              <div class="candidate-card" *ngFor="let candidate of candidateResults; let i = index">
                 <div class="candidate-header">
                   <div class="candidate-image-wrapper">
                     <img 
@@ -305,6 +319,16 @@
                     </svg>
                     View LinkedIn Profile
                   </a>
+                  <button 
+                    class="deep-research-button"
+                    (click)="deepResearchCandidate(candidate, i)"
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <circle cx="11" cy="11" r="8"></circle>
+                      <path d="m21 21-4.35-4.35"></path>
+                    </svg>
+                    AI Deep Search Candidate
+                  </button>
                 </div>
               </div>
             </div>
@@ -341,6 +365,55 @@
               </svg>
               <h3>No Candidates Found</h3>
               <p>We couldn't find any candidates matching your search. Try adjusting your search terms.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Resume Intelligence Tab -->
+      <div class="tab-content resume-intelligence" *ngIf="activeTab === 'resume'">
+        <div class="resume-container">
+          <!-- Error Display -->
+          <div *ngIf="resumeError" class="error-message">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            <p>{{ resumeError }}</p>
+          </div>
+
+          <!-- Upload Section -->
+          <div class="resume-section" *ngIf="!currentResumeData">
+            <app-resume-upload
+              (resumeParsed)="onResumeParsed($event)"
+              (error)="onResumeError($event)"
+            ></app-resume-upload>
+          </div>
+
+          <!-- Preview and Insights Section -->
+          <div class="resume-section" *ngIf="currentResumeData">
+            <div class="resume-actions">
+              <button class="btn btn-secondary" (click)="currentResumeData = undefined; currentResumeId = undefined">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <line x1="12" y1="5" x2="12" y2="19"></line>
+                  <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                Upload New Resume
+              </button>
+            </div>
+
+            <div class="resume-content">
+              <div class="preview-section">
+                <app-resume-preview [resumeData]="currentResumeData"></app-resume-preview>
+              </div>
+
+              <div class="insights-section">
+                <app-resume-insights
+                  [resumeId]="currentResumeId"
+                  [resumeData]="currentResumeData"
+                ></app-resume-insights>
+              </div>
             </div>
           </div>
         </div>
