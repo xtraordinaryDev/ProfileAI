@@ -14,11 +14,11 @@ GitHub has blocked your push because Stripe secret keys were detected in your gi
    - Download from: https://rtyley.github.io/bfg-repo-cleaner/
    - Or use: `winget install BFG` (if winget is available)
 
-2. **Create a file with the secrets to remove:**
+2. **Create a file with the secrets to remove (use your actual keys locally, do NOT commit this file):**
    ```powershell
    @"
-   sk_test_REDACTED
-   whsec_REDACTED
+   sk_test_your_stripe_test_key_here
+   whsec_your_stripe_webhook_secret_here
    "@ | Out-File secrets.txt
    ```
 
